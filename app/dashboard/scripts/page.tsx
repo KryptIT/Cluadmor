@@ -11,7 +11,7 @@ import {
   Play,
   RefreshCw,
   Save,
-  Trash2
+  Sparkles
 } from "lucide-react";
 
 type Service = { id: string; name: string };
@@ -24,7 +24,7 @@ type SavedScript = {
 };
 
 export default function ScriptsPage() {
-  const [owner, setOwner] = useState<boolean | null>(null);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);\n  const [ownerBypass, setOwnerBypass] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [scripts, setScripts] = useState<SavedScript[]>([]);
   const [serviceId, setServiceId] = useState("");
@@ -41,9 +41,9 @@ export default function ScriptsPage() {
   );
 
   async function load() {
-    const servicesRes = await fetch("/api/owner/services", { cache: "no-store" });
+    const servicesRes = await fetch("/api/workspace/services", { cache: "no-store" });
     if (servicesRes.status === 401) {
-      setOwner(false);
+      setAuthenticated(false);
       setServices([]);
       setScripts([]);
       return;
@@ -51,11 +51,11 @@ export default function ScriptsPage() {
 
     const serviceData = await servicesRes.json();
     const list = serviceData.services || [];
-    setOwner(true);
+    setAuthenticated(true);\n    setOwnerBypass(!!serviceData.ownerBypass);
     setServices(list);
     if (!serviceId && list[0]) setServiceId(list[0].id);
 
-    const scriptsRes = await fetch("/api/owner/scripts", { cache: "no-store" });
+    const scriptsRes = await fetch("/api/workspace/scripts", { cache: "no-store" });
     if (scriptsRes.ok) {
       const scriptData = await scriptsRes.json();
       setScripts(scriptData.scripts || []);
@@ -90,7 +90,7 @@ export default function ScriptsPage() {
     setBusy(id);
     setMessage("");
     try {
-      const res = await fetch("/api/owner/scripts?id=" + encodeURIComponent(id), { cache: "no-store" });
+      const res = await fetch("/api/workspace/scripts?id=" + encodeURIComponent(id), { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error || "Could not load script.");
@@ -111,7 +111,7 @@ export default function ScriptsPage() {
     setMessage("");
     setOutput("");
     try {
-      const res = await fetch("/api/owner/obfuscate", {
+      const res = await fetch("/api/workspace/obfuscate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source, preset })
@@ -120,7 +120,11 @@ export default function ScriptsPage() {
       if (!res.ok) {
         try {
           const parsed = JSON.parse(text);
-          setMessage(parsed.detail || parsed.error || "Claudium failed.");
+          if (res.status === 402 && parsed.error === "obfuscation_credit_required") {
+            setMessage("One obfuscation credit is required. Complete the reward step or enable the owner bypass.");
+          } else {
+            setMessage(parsed.detail || parsed.error || "Claudium failed.");
+          }
         } catch {
           setMessage(text || "Claudium failed.");
         }
@@ -133,6 +137,31 @@ export default function ScriptsPage() {
       } catch {
         setOutput(text);
       }
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function getObfuscationCredit() {
+    setBusy("reward");
+    setMessage("");
+    try {
+      const res = await fetch("/api/rewards/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "OBFUSCATION" })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Could not start reward flow.");
+        return;
+      }
+      if (data.bypass) {
+        setOwnerBypass(true);
+        setMessage("Owner bypass active.");
+        return;
+      }
+      if (data.url) window.location.href = data.url;
     } finally {
       setBusy("");
     }
@@ -155,23 +184,29 @@ export default function ScriptsPage() {
         </div>
       </div>
 
-      {owner === false && (
+      {authenticated === false && (
         <div className="notice ownerNotice">
           <div>
-            <strong>Owner mode is required for the direct editor.</strong>
-            <span>Normal users can still use the monetized public flow later; this page is your bypass.</span>
+            <strong>Sign in to use your script workspace.</strong>
+            <span>Every Claudmor account can save scripts for its own services. Owner mode only skips obfuscation rewards.</span>
           </div>
-          <Link className="secondaryBtn" href="/dashboard/settings"><KeyRound size={14}/> Open settings</Link>
+          <Link className="secondaryBtn" href="/login"><KeyRound size={14}/> Sign in</Link>
         </div>
       )}
 
-      {owner === true && services.length === 0 && (
+      {authenticated === true && services.length === 0 && (
         <div className="notice ownerNotice">
           <div>
             <strong>Create a service first.</strong>
-            <span>Scripts are stored under a service so keys, providers, and client integration stay isolated.</span>
+            <span>Scripts belong to your service and can then be selected by place/universe loader routes.</span>
           </div>
           <Link className="secondaryBtn" href="/dashboard/services">Create service</Link>
+        </div>
+      )}
+      {authenticated === true && ownerBypass && (
+        <div className="notice ownerNotice">
+          <div><strong>Owner bypass active.</strong><span>Claudium runs here do not consume obfuscation credits.</span></div>
+          <Link className="secondaryBtn" href="/dashboard/settings">Settings</Link>
         </div>
       )}
 
@@ -185,18 +220,18 @@ export default function ScriptsPage() {
           <div className="scriptMeta">
             <label>
               Service
-              <select className="input" value={serviceId} onChange={e => setServiceId(e.target.value)} disabled={owner !== true}>
+              <select className="input" value={serviceId} onChange={e => setServiceId(e.target.value)} disabled={authenticated !== true}>
                 <option value="">Select service...</option>
                 {services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}
               </select>
             </label>
             <label>
               Script name
-              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="script.lua" disabled={owner !== true}/>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="script.lua" disabled={authenticated !== true}/>
             </label>
             <label>
               Claudium preset
-              <select className="input" value={preset} onChange={e => setPreset(e.target.value)} disabled={owner !== true}>
+              <select className="input" value={preset} onChange={e => setPreset(e.target.value)} disabled={authenticated !== true}>
                 <option value="executor">executor</option>
                 <option value="roblox">roblox</option>
                 <option value="luau">luau</option>
@@ -212,19 +247,24 @@ export default function ScriptsPage() {
               value={source}
               onChange={e => setSource(e.target.value)}
               spellCheck={false}
-              disabled={owner !== true}
+              disabled={authenticated !== true}
             />
           </label>
 
           <div className="editorActions">
-            <button className="secondaryBtn" disabled={owner !== true || busy !== "" || !serviceId} onClick={saveScript}>
+            <button className="secondaryBtn" disabled={authenticated !== true || busy !== "" || !serviceId} onClick={saveScript}>
               {busy === "save" ? <RefreshCw size={14} className="spin"/> : <Save size={14}/>}
               Save script
             </button>
-            <button className="primaryBtn" disabled={owner !== true || busy !== "" || !source.trim()} onClick={obfuscate}>
+            <button className="primaryBtn" disabled={authenticated !== true || busy !== "" || !source.trim()} onClick={obfuscate}>
               {busy === "obfuscate" ? <RefreshCw size={14} className="spin"/> : <Play size={14}/>}
               Obfuscate
             </button>
+            {!ownerBypass && authenticated === true && (
+              <button className="secondaryBtn" disabled={busy !== ""} onClick={getObfuscationCredit}>
+                <Sparkles size={14}/> Get 1 credit
+              </button>
+            )}
           </div>
 
           {message && <div className="settingsMessage">{message}</div>}
