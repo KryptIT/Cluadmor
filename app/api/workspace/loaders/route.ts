@@ -3,6 +3,7 @@ import { encryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { buildLoader } from "@/lib/loader-template";
+import { buildPublicBootstrap } from "@/lib/public-bootstrap";
 import { noStoreJson } from "@/lib/security";
 import { workspaceIdentity } from "@/lib/workspace";
 
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
   if ("error" in owned) return owned.error;
 
   const rows = await sql`
-    SELECT loader_ciphertext, updated_at
+    SELECT loader_ciphertext, bootstrap_ciphertext, updated_at
     FROM service_loaders
     WHERE service_id = ${serviceId}
     LIMIT 1
@@ -58,10 +59,10 @@ export async function GET(req: Request) {
   return noStoreJson({
     ok: true,
     service: owned.service,
-    published: !!rows[0],
+    published: !!rows[0] && !!(rows[0] as any).bootstrap_ciphertext,
     updatedAt: rows[0] ? (rows[0] as any).updated_at : null,
     publicUrl: info.publicUrl,
-    oneLiner: rows[0] ? info.oneLiner : ""
+    oneLiner: rows[0] && (rows[0] as any).bootstrap_ciphertext ? info.oneLiner : ""
   });
 }
 
@@ -79,27 +80,48 @@ export async function POST(req: Request) {
 
   const origin = new URL(req.url).origin;
   const readableLoader = buildLoader(origin, body.serviceId);
-  const result = await runClaudium(readableLoader, "executor", false);
+  const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
 
-  if (!result.ok) {
+  const [loaderResult, bootstrapResult] = await Promise.all([
+    runClaudium(readableLoader, "executor", true),
+    runClaudium(readableBootstrap, "executor", true)
+  ]);
+
+  if (!loaderResult.ok) {
     return noStoreJson({
       ok: false,
-      error: result.error,
-      detail: result.detail || null,
-      upstreamStatus: result.status
-    }, result.status >= 400 && result.status < 600 ? result.status : 502);
+      error: loaderResult.error,
+      detail: loaderResult.detail || null,
+      upstreamStatus: loaderResult.status
+    }, loaderResult.status >= 400 && loaderResult.status < 600 ? loaderResult.status : 502);
+  }
+
+  if (!bootstrapResult.ok) {
+    return noStoreJson({
+      ok: false,
+      error: bootstrapResult.error,
+      detail: bootstrapResult.detail || null,
+      upstreamStatus: bootstrapResult.status
+    }, bootstrapResult.status >= 400 && bootstrapResult.status < 600 ? bootstrapResult.status : 502);
   }
 
   await sql`
-    INSERT INTO service_loaders(service_id, loader_ciphertext, updated_at)
+    INSERT INTO service_loaders(
+      service_id,
+      loader_ciphertext,
+      bootstrap_ciphertext,
+      updated_at
+    )
     VALUES (
       ${body.serviceId},
-      ${encryptConfig({ source: result.output })},
+      ${encryptConfig({ source: loaderResult.output })},
+      ${encryptConfig({ source: bootstrapResult.output })},
       now()
     )
     ON CONFLICT(service_id)
     DO UPDATE SET
       loader_ciphertext = EXCLUDED.loader_ciphertext,
+      bootstrap_ciphertext = EXCLUDED.bootstrap_ciphertext,
       updated_at = now()
   `;
 
