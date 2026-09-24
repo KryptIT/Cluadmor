@@ -15,14 +15,33 @@ function safeEqualText(a: string, b: string) {
   return timingSafeEqual(ah, bh);
 }
 
+function normalizeOwnerKey(value: string) {
+  let out = String(value || "").trim();
+
+  if (
+    out.length >= 2 &&
+    ((out.startsWith('"') && out.endsWith('"')) ||
+      (out.startsWith("'") && out.endsWith("'")))
+  ) {
+    out = out.slice(1, -1);
+  }
+
+  return out;
+}
+
 export function ownerKeyConfigured() {
-  return (process.env.CLAUDMOR_OWNER_KEY || "").trim().length > 0;
+  return normalizeOwnerKey(process.env.CLAUDMOR_OWNER_KEY || "").length > 0;
 }
 
 export function verifyOwnerKey(value: string) {
-  const configured = (process.env.CLAUDMOR_OWNER_KEY || "").trim();
-  const supplied = String(value || "").trim();
-  return configured.length > 0 && supplied.length > 0 && safeEqualText(supplied, configured);
+  const configured = normalizeOwnerKey(process.env.CLAUDMOR_OWNER_KEY || "");
+  const supplied = normalizeOwnerKey(value);
+
+  return (
+    configured.length > 0 &&
+    supplied.length > 0 &&
+    safeEqualText(supplied, configured)
+  );
 }
 
 export function issueOwnerToken(userId: string, ttlSeconds = 604800) {
