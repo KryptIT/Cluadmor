@@ -141,8 +141,14 @@ export async function GET(req: Request) {
       count(*) FILTER (WHERE event_type = 'AUTH_REJECTED')::int AS auth_rejected,
       count(*) FILTER (WHERE event_type = 'SCRIPT_DELIVERY')::int AS deliveries,
       count(*) FILTER (WHERE event_type = 'ROUTE_MISS')::int AS route_misses,
-      count(DISTINCT hwid_hash) FILTER (WHERE hwid_hash IS NOT NULL)::int AS unique_devices,
-      count(DISTINCT key_id) FILTER (WHERE key_id IS NOT NULL)::int AS keys_seen
+      count(DISTINCT hwid_hash) FILTER (
+        WHERE hwid_hash IS NOT NULL
+          AND event_type IN ('AUTH_SUCCESS','SCRIPT_DELIVERY')
+      )::int AS unique_devices,
+      count(DISTINCT key_id) FILTER (
+        WHERE key_id IS NOT NULL
+          AND event_type IN ('AUTH_SUCCESS','SCRIPT_DELIVERY')
+      )::int AS keys_seen
     FROM telemetry_events
     WHERE service_id = ${serviceId}
       AND created_at >= now() - ${window}::interval
