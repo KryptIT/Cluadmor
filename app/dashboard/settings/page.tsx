@@ -30,9 +30,13 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setMessage(data.error === "owner_key_not_configured"
-          ? "CLAUDMOR_OWNER_KEY is not configured on Vercel."
-          : "Owner key rejected.");
+        setMessage(
+          data.error === "owner_key_not_configured"
+            ? "CLAUDMOR_OWNER_KEY is not configured on Vercel."
+            : data.error === "login_required"
+              ? "Sign in with Google or Discord before enabling owner mode."
+              : "Owner key rejected."
+        );
         return;
       }
       setOwnerKey("");
