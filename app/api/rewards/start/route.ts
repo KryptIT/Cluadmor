@@ -33,7 +33,10 @@ export async function POST(req: Request) {
     return noStoreJson({ ok: true, bypass: true });
   }
 
-  let body: { type?: "SERVICE_CREATION" | "OBFUSCATION" };
+  let body: {
+    type?: "SERVICE_CREATION" | "OBFUSCATION";
+    returnTo?: string;
+  };
 
   try {
     body = await req.json();
@@ -101,10 +104,17 @@ export async function POST(req: Request) {
   }
 
   const origin = new URL(req.url).origin;
-  const destination =
+
+  const allowedReturn =
     body.type === "SERVICE_CREATION"
-      ? `${origin}/dashboard/services?reward=${sessionId}`
-      : `${origin}/dashboard/scripts?reward=${sessionId}`;
+      ? "/dashboard/services"
+      : body.returnTo === "/dashboard/credits"
+        ? "/dashboard/credits"
+        : "/dashboard/scripts";
+
+  const destinationUrl = new URL(allowedReturn, origin);
+  destinationUrl.searchParams.set("reward", sessionId);
+  const destination = destinationUrl.toString();
 
   const requestBody = {
     title: body.type === "SERVICE_CREATION"
