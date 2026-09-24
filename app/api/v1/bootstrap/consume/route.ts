@@ -37,9 +37,9 @@ export async function POST(req: Request) {
   return noStoreJson({
     ok: true,
     protocol: 1,
-    capabilities: ["auth", "resolve-script", "obfuscate"],
+    capabilities: ["auth", "one-time-script-delivery", "obfuscate"],
     endpoints: {
-      resolveScript: "/api/v1/loader/resolve",
+      fetchScript: "/api/v1/loader/fetch",
       obfuscate: "/api/v1/obfuscate"
     }
   });
