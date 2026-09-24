@@ -153,3 +153,60 @@ button:disabled{cursor:not-allowed;opacity:.48}
 .backendOnline{color:#78d7a8;border-color:#22533d;background:#0a1610}
 .backendOffline{color:#e19a9f;border-color:#54272c;background:#160c0e}
 @media(max-width:680px){.pageHeadActions{width:100%;align-items:stretch;flex-direction:column}.backendState{justify-content:center}}
+
+.telemetryHeadActions{display:flex;align-items:center;gap:8px}
+.telemetryServiceSelect{min-width:190px}
+.rangeSwitch{height:34px;display:flex;align-items:center;padding:3px;border:1px solid var(--border);border-radius:4px;background:#080c0f}
+.rangeSwitch button{height:26px;padding:0 9px;border:0;border-radius:3px;background:transparent;color:#64737a;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.rangeSwitch button.active{background:#122127;color:#bfeaf0}
+.telemetryStats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.telemetryStat{min-height:112px;display:flex;flex-direction:column;padding:13px;border:1px solid var(--border);border-radius:var(--radius);background:#0a0f12}
+.telemetryStat>svg{color:#68c8d4}
+.telemetryStat>span{margin-top:12px;color:#67757c;font-size:10px}
+.telemetryStat>strong{margin-top:4px;color:#e4ecef;font-size:24px;letter-spacing:-.04em}
+.telemetryStat>small{margin-top:auto;color:#536168;font-size:9px}
+.telemetryGraphPanel{margin-bottom:14px}
+.telemetryChart{padding-top:13px;overflow:hidden}
+.telemetryChart svg{width:100%;height:auto;display:block;overflow:visible}
+.chartLegend{display:flex;align-items:center;gap:15px;margin-bottom:8px;color:#69777e;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.chartLegend span{display:inline-flex;align-items:center;gap:6px}
+.chartLegend i{width:14px;height:2px;display:block;border-radius:2px}
+.chartLegendSuccess i{background:#65d8a0}
+.chartLegendDelivery i{background:#6bcbd7}
+.chartLegendReject i{background:#d78088}
+.chartGridLine{stroke:#1b262b;stroke-width:1}
+.chartAxisText{fill:#506068;font:8px ui-monospace,SFMono-Regular,Menlo,monospace}
+.chartLine{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.chartSuccess{stroke:#65d8a0}
+.chartDelivery{stroke:#6bcbd7}
+.chartReject{stroke:#d78088}
+.telemetryGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.rankList{display:grid;padding-top:10px}
+.rankRow{padding:9px 0;border-bottom:1px solid var(--border)}
+.rankRow:last-child{border-bottom:0}
+.rankMeta{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rankMeta strong{max-width:80%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#adbcc2;font-size:10px;font-weight:550}
+.rankMeta span{color:#65747b;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.rankTrack{height:3px;margin-top:7px;background:#111a1e}
+.rankTrack i{height:100%;display:block;background:#4e9eaa;border-radius:2px}
+.telemetryEmpty{padding:24px 2px;color:#5c6a71;font-size:10px}
+.telemetryRecentPanel{margin-bottom:14px}
+.telemetryRecent{display:grid}
+.telemetryEvent{min-height:58px;display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--border)}
+.telemetryEvent:last-child{border-bottom:0}
+.telemetryEventIcon{width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--border);border-radius:4px;background:#090e11;color:#68c8d4}
+.event-auth_rejected,.event-route_miss{color:#d58c92}
+.event-auth_success{color:#70d9a6}
+.telemetryEventMain strong,.telemetryEventMain small{display:block}
+.telemetryEventMain strong{font-size:10px}
+.telemetryEventMain small{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;color:#5b6970;font-size:9px}
+.telemetryEventMain small span+span:before{content:"·";margin-right:8px;color:#36454c}
+.telemetryEvent time{color:#536168;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+@media(max-width:1050px){.telemetryStats{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){
+  .telemetryHeadActions{width:100%;align-items:stretch;flex-direction:column}
+  .telemetryServiceSelect{width:100%}
+  .telemetryStats,.telemetryGrid{grid-template-columns:1fr}
+  .telemetryEvent{grid-template-columns:30px 1fr}
+  .telemetryEvent time{grid-column:2}
+}
