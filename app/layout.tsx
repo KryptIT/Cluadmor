@@ -2,8 +2,14 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Claudmor",
-  description: "Authentication, licensing, and Claudium access control."
+  title: {
+    default: "Claudmor",
+    template: "%s · Claudmor"
+  },
+  description: "Authentication, licensing, provider flows, and Claudium obfuscation for Lua scripts.",
+  icons: {
+    icon: "/claudmor-mark.svg"
+  }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
