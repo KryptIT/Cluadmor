@@ -32,6 +32,7 @@ export default function ScriptsPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [ownerBypass, setOwnerBypass] = useState(false);
   const [claudiumConfigured, setClaudiumConfigured] = useState<boolean | null>(null);
+  const [claudiumDetail, setClaudiumDetail] = useState("");
   const [services, setServices] = useState<Service[]>([]);
   const [scripts, setScripts] = useState<SavedScript[]>([]);
 
@@ -82,7 +83,8 @@ export default function ScriptsPage() {
 
     if (claudiumRes.ok) {
       const claudiumData = await claudiumRes.json();
-      setClaudiumConfigured(!!claudiumData.configured);
+      setClaudiumConfigured(!!claudiumData.online);
+      setClaudiumDetail(String(claudiumData.detail || ""));
     }
   }
 
@@ -295,6 +297,15 @@ export default function ScriptsPage() {
             <span>Use Google or Discord to access your own services and stored source.</span>
           </div>
           <Link className="secondaryBtn" href="/login"><KeyRound size={14}/> Sign in</Link>
+        </div>
+      )}
+
+      {authenticated === true && claudiumConfigured === false && (
+        <div className="notice ownerNotice">
+          <div>
+            <strong>Claudium backend is offline.</strong>
+            <span>{claudiumDetail || "Check CLAUDIUM_INTERNAL_URL and CLAUDIUM_INTERNAL_SECRET on Vercel and Railway."}</span>
+          </div>
         </div>
       )}
 
