@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, ShieldCheck } from "lucide-react";
 
 export default async function LoginPage({
   searchParams
@@ -53,6 +53,13 @@ export default async function LoginPage({
         <div className="authSecurity">
           <ShieldCheck size={15}/>
           <span>No Claudmor password is stored. Authentication is handled by Google or Discord.</span>
+        </div>
+
+        <div className="authCommunity">
+          <span>Want updates, changelogs, or help?</span>
+          <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">
+            Join the Discord <ExternalLink size={12}/>
+          </a>
         </div>
 
         <div className="authFoot">
