@@ -60,7 +60,8 @@ export async function GET(req: Request) {
     service: owned.service,
     published: !!rows[0],
     updatedAt: rows[0] ? (rows[0] as any).updated_at : null,
-    ...info
+    publicUrl: info.publicUrl,
+    oneLiner: rows[0] ? info.oneLiner : ""
   });
 }
 
