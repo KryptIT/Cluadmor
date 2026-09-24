@@ -31,6 +31,7 @@ type SavedScript = {
 export default function ScriptsPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [ownerBypass, setOwnerBypass] = useState(false);
+  const [claudiumConfigured, setClaudiumConfigured] = useState<boolean | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [scripts, setScripts] = useState<SavedScript[]>([]);
 
@@ -52,9 +53,10 @@ export default function ScriptsPage() {
   );
 
   async function load() {
-    const [servicesRes, scriptsRes] = await Promise.all([
+    const [servicesRes, scriptsRes, claudiumRes] = await Promise.all([
       fetch("/api/workspace/services", { cache: "no-store" }),
-      fetch("/api/workspace/scripts", { cache: "no-store" })
+      fetch("/api/workspace/scripts", { cache: "no-store" }),
+      fetch("/api/workspace/claudium/status", { cache: "no-store" })
     ]);
 
     if (servicesRes.status === 401) {
@@ -76,6 +78,11 @@ export default function ScriptsPage() {
     if (scriptsRes.ok) {
       const scriptData = await scriptsRes.json();
       setScripts(scriptData.scripts || []);
+    }
+
+    if (claudiumRes.ok) {
+      const claudiumData = await claudiumRes.json();
+      setClaudiumConfigured(!!claudiumData.configured);
     }
   }
 
@@ -256,13 +263,29 @@ export default function ScriptsPage() {
           <p>Keep editable source privately, store the last Claudium build, and route only protected builds to loaders.</p>
         </div>
 
-        <button
-          className="secondaryBtn"
-          disabled={authenticated !== true}
-          onClick={newScript}
-        >
-          <Plus size={14}/> New script
-        </button>
+        <div className="pageHeadActions">
+          <span className={
+            claudiumConfigured === true
+              ? "backendState backendOnline"
+              : claudiumConfigured === false
+                ? "backendState backendOffline"
+                : "backendState"
+          }>
+            {claudiumConfigured === true
+              ? "Claudium online"
+              : claudiumConfigured === false
+                ? "Claudium not configured"
+                : "Checking Claudium"}
+          </span>
+
+          <button
+            className="secondaryBtn"
+            disabled={authenticated !== true}
+            onClick={newScript}
+          >
+            <Plus size={14}/> New script
+          </button>
+        </div>
       </div>
 
       {authenticated === false && (
@@ -401,7 +424,7 @@ export default function ScriptsPage() {
 
               <button
                 className="primaryBtn"
-                disabled={authenticated !== true || busy !== "" || !serviceId || !source.trim()}
+                disabled={authenticated !== true || claudiumConfigured !== true || busy !== "" || !serviceId || !source.trim()}
                 onClick={build}
               >
                 {busy === "build"
