@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  Activity,
   ArrowRight,
   Boxes,
   Coins,
@@ -168,6 +169,12 @@ export default function Dashboard() {
             <Link href="/dashboard/routes">
               <Route size={16} />
               <div><strong>Loader routes</strong><small>Resolve PlaceId / UniverseId to scripts.</small></div>
+              <ArrowRight size={13} />
+            </Link>
+
+            <Link href="/dashboard/telemetry">
+              <Activity size={16} />
+              <div><strong>Telemetry</strong><small>Auth, delivery, devices, scripts, and route activity.</small></div>
               <ArrowRight size={13} />
             </Link>
 
