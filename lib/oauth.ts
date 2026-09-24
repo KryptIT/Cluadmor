@@ -150,7 +150,13 @@ export async function resolveOAuthUser(identity: OAuthIdentity) {
 }
 
 export function finishOAuth(userId: string, redirectTo: string, provider: OAuthProvider) {
-  const response = Response.redirect(redirectTo, 302);
+  const response = new Response(null, {
+    status: 302,
+    headers: {
+      "Location": redirectTo,
+      "Cache-Control": "no-store"
+    }
+  });
   response.headers.append("Set-Cookie", accountCookie(issueAccountToken(userId)));
   response.headers.append("Set-Cookie", clearOAuthStateCookie(provider));
   return response;
