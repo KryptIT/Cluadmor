@@ -6,6 +6,7 @@ import { CheckCircle2, KeyRound, LogOut, ShieldCheck } from "lucide-react";
 export default function SettingsPage() {
   const [owner, setOwner] = useState<boolean | null>(null);
   const [ownerKey, setOwnerKey] = useState("");
+  const [configured, setConfigured] = useState<boolean | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -13,6 +14,7 @@ export default function SettingsPage() {
     const res = await fetch("/api/owner/session", { cache: "no-store" });
     const data = await res.json();
     setOwner(!!data.owner);
+    setConfigured(!!data.configured);
   }
 
   useEffect(() => { refresh(); }, []);
@@ -100,13 +102,18 @@ export default function SettingsPage() {
             </div>
           )}
 
+{configured === false && (
+            <div className="formError">
+              CLAUDMOR_OWNER_KEY is not loaded by this deployment. Add it to the Production environment in Vercel, then redeploy.
+            </div>
+          )}
           {message && <div className="settingsMessage">{message}</div>}
         </div>
       </section>
 
       <section className="hintCard">
         <strong>Vercel variable</strong>
-        <p>Add <code>CLAUDMOR_OWNER_KEY</code> to your Vercel project and make it a long random value. Never prefix it with <code>NEXT_PUBLIC_</code>.</p>
+        <p>Add <code>CLAUDMOR_OWNER_KEY</code> to Vercel's Production environment and redeploy after changing it. It can be any non-empty value, though a long random value is safer. Never prefix it with <code>NEXT_PUBLIC_</code>.</p>
       </section>
     </>
   );
