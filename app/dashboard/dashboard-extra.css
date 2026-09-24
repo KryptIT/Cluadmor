@@ -1,4 +1,4 @@
-.brand img{width:40px!important;height:40px!important;object-fit:contain;flex:0 0 40px}
+.brand img{width:42px!important;height:42px!important;object-fit:contain;flex:0 0 42px}
 button:disabled{cursor:not-allowed;opacity:.48}
 .iconButton{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--border);border-radius:4px;background:#090e11;color:#7e8c93}
 .iconButton:hover{color:#fff;border-color:var(--border-strong)}
@@ -43,7 +43,7 @@ button:disabled{cursor:not-allowed;opacity:.48}
 
 /* polish */
 .brand{gap:12px!important}
-.brand img{width:36px!important;height:36px!important;flex:0 0 36px!important}
+.brand img{width:42px!important;height:42px!important;flex:0 0 42px!important}
 .primaryBtn,.secondaryBtn,.iconButton,.navItem,.providerConfigure,.savedScriptRow,.searchBtn,.creditBtn{
   transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s ease,opacity .16s ease;
 }
@@ -87,3 +87,21 @@ button:disabled{cursor:not-allowed;opacity:.48}
 .providerEnableRow{display:flex!important;align-items:center;gap:8px;color:#7f8d94!important}
 .providerEnableRow input{accent-color:#55cddd}
 @media(max-width:720px){.providerServiceBar{grid-template-columns:1fr}}
+
+.overviewList{display:grid}
+.overviewRow{min-height:58px;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--border);color:#aebbc0}
+.overviewRow:last-child{border-bottom:0}
+.overviewRow>svg{color:#67c6d1}
+.overviewRow strong,.overviewRow small{display:block}
+.overviewRow strong{font-size:11px}
+.overviewRow small{max-width:420px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;color:#56646b;font:9px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+.overviewRow:hover{background:#0a1013}
+.workspaceLinks{display:grid}
+.workspaceLinks>a{min-height:68px;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--border)}
+.workspaceLinks>a:last-child{border-bottom:0}
+.workspaceLinks>a>svg:first-child{color:#6bc8d4}
+.workspaceLinks strong,.workspaceLinks small{display:block}
+.workspaceLinks strong{font-size:11px}
+.workspaceLinks small{margin-top:4px;color:#65737a;font-size:10px}
+.workspaceLinks>a>svg:last-child{color:#4f5e65}
+.workspaceLinks>a:hover{background:#0a1013}
