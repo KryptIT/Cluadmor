@@ -14,9 +14,14 @@ function safeEqualText(a: string, b: string) {
   return timingSafeEqual(ah, bh);
 }
 
+export function ownerKeyConfigured() {
+  return (process.env.CLAUDMOR_OWNER_KEY || "").trim().length > 0;
+}
+
 export function verifyOwnerKey(value: string) {
-  const configured = process.env.CLAUDMOR_OWNER_KEY || "";
-  return configured.length >= 24 && safeEqualText(value, configured);
+  const configured = (process.env.CLAUDMOR_OWNER_KEY || "").trim();
+  const supplied = String(value || "").trim();
+  return configured.length > 0 && supplied.length > 0 && safeEqualText(supplied, configured);
 }
 
 export function issueOwnerToken(ttlSeconds = 604800) {
