@@ -1,12 +1,12 @@
-import { decryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
+import { buildPublicBootstrap } from "@/lib/public-bootstrap";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ serviceId: string }> }
 ) {
   await ensureWorkspaceSchema();
@@ -14,10 +14,10 @@ export async function GET(
   const { serviceId } = await context.params;
 
   const rows = await sql`
-    SELECT sl.loader_ciphertext
-    FROM service_loaders sl
-    JOIN services s ON s.id = sl.service_id
-    WHERE sl.service_id = ${serviceId}
+    SELECT s.id
+    FROM services s
+    JOIN service_loaders sl ON sl.service_id = s.id
+    WHERE s.id = ${serviceId}
       AND s.enabled = true
     LIMIT 1
   `;
@@ -33,25 +33,15 @@ export async function GET(
     });
   }
 
-  const decoded = decryptConfig((rows[0] as any).loader_ciphertext) as { source?: string };
-  const source = String(decoded.source || "");
+  const origin = new URL(req.url).origin;
+  const bootstrap = buildPublicBootstrap(origin, serviceId);
 
-  if (!source) {
-    return new Response("-- Claudmor loader unavailable", {
-      status: 503,
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store, max-age=0",
-        "X-Content-Type-Options": "nosniff"
-      }
-    });
-  }
-
-  return new Response(source, {
+  return new Response(bootstrap, {
     status: 200,
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store, max-age=0",
+      "Pragma": "no-cache",
       "X-Content-Type-Options": "nosniff"
     }
   });
