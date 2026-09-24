@@ -140,11 +140,13 @@ end
 
 ENV.__CLAUDMOR_AUTHORIZED = true
 ENV.__CLAUDMOR_DELIVERY = delivery.deliveryToken
+ENV.__CLAUDMOR_SERVICE = "${serviceId}"
 
 local compiler = loadstring or load
 if type(compiler) ~= "function" then
     ENV.__CLAUDMOR_AUTHORIZED = nil
     ENV.__CLAUDMOR_DELIVERY = nil
+    ENV.__CLAUDMOR_SERVICE = nil
     error("[Claudmor] loadstring is unavailable", 0)
 end
 
@@ -152,6 +154,7 @@ local chunk, compileError = compiler(delivery.source, "@Claudmor/" .. tostring(d
 if not chunk then
     ENV.__CLAUDMOR_AUTHORIZED = nil
     ENV.__CLAUDMOR_DELIVERY = nil
+    ENV.__CLAUDMOR_SERVICE = nil
     error("[Claudmor] compile failed: " .. tostring(compileError), 0)
 end
 
@@ -159,6 +162,7 @@ local ok, result = pcall(chunk)
 
 ENV.__CLAUDMOR_AUTHORIZED = nil
 ENV.__CLAUDMOR_DELIVERY = nil
+ENV.__CLAUDMOR_SERVICE = nil
 
 if not ok then
     error(result, 0)
