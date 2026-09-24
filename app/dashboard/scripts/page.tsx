@@ -276,7 +276,7 @@ export default function ScriptsPage() {
             {claudiumConfigured === true
               ? "Claudium online"
               : claudiumConfigured === false
-                ? "Claudium not configured"
+                ? "Claudium offline"
                 : "Checking Claudium"}
           </span>
 
