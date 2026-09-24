@@ -4,7 +4,9 @@ CREATE TABLE IF NOT EXISTS users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text UNIQUE,
   username text UNIQUE,
+  password_hash text,
   obfuscation_credits integer NOT NULL DEFAULT 0 CHECK (obfuscation_credits >= 0),
+  service_creation_credits integer NOT NULL DEFAULT 0 CHECK (service_creation_credits >= 0),
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -28,6 +30,18 @@ CREATE TABLE IF NOT EXISTS service_scripts (
   source_ciphertext text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS script_routes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  script_id uuid NOT NULL REFERENCES service_scripts(id) ON DELETE CASCADE,
+  match_type text NOT NULL CHECK (match_type IN ('PLACE','UNIVERSE','DEFAULT')),
+  match_value text NOT NULL DEFAULT '',
+  priority integer NOT NULL DEFAULT 0,
+  enabled boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(service_id, match_type, match_value)
 );
 
 CREATE TABLE IF NOT EXISTS license_keys (
@@ -109,6 +123,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
 
 CREATE INDEX IF NOT EXISTS idx_keys_service ON license_keys(service_id);
 CREATE INDEX IF NOT EXISTS idx_scripts_service ON service_scripts(service_id);
+CREATE INDEX IF NOT EXISTS idx_script_routes_service ON script_routes(service_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_expiry ON bootstrap_tickets(expires_at);
 CREATE INDEX IF NOT EXISTS idx_rewards_user ON reward_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_service_providers_service ON service_providers(service_id);
