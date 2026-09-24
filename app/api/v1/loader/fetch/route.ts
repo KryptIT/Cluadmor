@@ -1,5 +1,6 @@
 import { decryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
+import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { clientIp, digest, noStoreJson, normalizeHwid, opaque } from "@/lib/security";
 import { recordTelemetry } from "@/lib/telemetry";
 
@@ -22,6 +23,7 @@ ${routeCheck}`;
 }
 
 export async function POST(req: Request) {
+  await ensureWorkspaceSchema();
   let body: {
     ticket?: string;
     hwid?: string;
