@@ -1,180 +1,194 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Boxes,
-  CheckCircle2,
   Code2,
-  Coins,
   ExternalLink,
   KeyRound,
-  Link2,
-  LockKeyhole,
-  MessageCircle,
-  PlugZap,
-  ServerCog,
-  ShieldCheck,
-  SquareTerminal,
-  Webhook
+  Route,
+  ShieldCheck
 } from "lucide-react";
 
-const steps = [
-  { n: "01", title: "Create a service", body: "Give one script or project its own isolated key system.", icon: Boxes },
-  { n: "02", title: "Connect providers", body: "Use your own LootLabs, Linkvertise, or Boostellar configuration.", icon: PlugZap },
-  { n: "03", title: "Set key rules", body: "Choose HWID, Roblox, Discord, expiry, and reset requirements.", icon: KeyRound },
-  { n: "04", title: "Ship the integration", body: "Generate a small client stub while sensitive logic stays server-side.", icon: Code2 }
+const rows = [
+  {
+    icon: ShieldCheck,
+    title: "Access control",
+    body: "HWID and account-bound keys with server-side verification."
+  },
+  {
+    icon: Route,
+    title: "Loader routing",
+    body: "Map PlaceId or UniverseId to the script that service should return."
+  },
+  {
+    icon: Code2,
+    title: "Claudium",
+    body: "Save source per service and send it through the Claudium backend."
+  }
 ];
-
-const features = [
-  { title: "Identity locks", body: "HWID, Roblox UserId, Roblox username, and Discord UserId.", icon: LockKeyhole },
-  { title: "Provider choice", body: "One provider, several providers, or ordered checkpoints per service.", icon: Link2 },
-  { title: "Server-side bootstrap", body: "No public loader asset or static bootstrap endpoint.", icon: ServerCog },
-  { title: "Claudium credits", body: "One successful obfuscation consumes one credit; failed runs refund it.", icon: Coins },
-  { title: "Webhooks and API", body: "Build your own automation around keys, auth events, and completions.", icon: Webhook },
-  { title: "Service isolation", body: "Separate secrets, rules, providers, and keys for every project.", icon: ShieldCheck }
-];
-
-const sample = [
-  "local response = request({",
-  "    Url = CLAUDMOR_URL .. \"/api/v1/auth\",",
-  "    Method = \"POST\",",
-  "    Headers = { [\"Content-Type\"] = \"application/json\" },",
-  "    Body = HttpService:JSONEncode(payload)",
-  "})",
-  "",
-  "-- private decisions remain server-side"
-].join("\n");
 
 export default function Home() {
   return (
-    <main className="home">
-      <header className="homeNav">
-        <Link href="/" className="homeLogo">
+    <main className="site">
+      <header className="siteHeader">
+        <Link href="/" className="siteBrand">
           <img src="/claudmor-mark.svg" alt="" />
           <span>Claudmor</span>
         </Link>
-        <nav className="homeLinks">
-          <a href="#workflow">Workflow</a>
-          <a href="#features">Features</a>
+
+        <nav className="siteNav">
+          <a href="#product">Product</a>
+          <a href="#routing">Routing</a>
           <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">Discord</a>
-          <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">larpcorrupted</a>
         </nav>
-        <Link href="/dashboard" className="navAction">Open dashboard <ArrowRight size={14} /></Link>
+
+        <div className="siteActions">
+          <Link href="/login" className="siteTextLink">Sign in</Link>
+          <Link href="/dashboard" className="siteButton">Open dashboard <ArrowRight size={14} /></Link>
+        </div>
       </header>
 
-      <section className="homeHero">
-        <div className="heroCopy">
-          <div className="eyebrow">CLAUDMOR / AUTH FOR LUA</div>
-          <h1>Authentication and obfuscation for Lua scripts.</h1>
+      <section className="siteHero">
+        <div className="heroMain">
+          <span className="heroKicker">Lua authentication + delivery</span>
+          <h1>Control who runs your scripts, and what they receive.</h1>
           <p>
-            Build a key system around your script without exposing the bootstrap logic.
-            Lock access to devices and accounts, connect your own monetization provider,
-            and send protected code through Claudium.
+            Claudmor handles keys, identity locks, provider flows, script storage,
+            and place/universe routing. Claudium handles the obfuscation.
           </p>
-          <div className="heroActions">
-            <Link href="/dashboard" className="heroPrimary">Create a service <ArrowRight size={16} /></Link>
-            <a href="#workflow" className="heroSecondary">See the workflow</a>
+
+          <div className="heroButtons">
+            <Link href="/login" className="siteButton heroButton">Create an account <ArrowRight size={14} /></Link>
+            <Link href="/dashboard" className="siteGhostButton">Open dashboard</Link>
           </div>
-          <div className="heroMeta">
-            <span><CheckCircle2 size={14} /> HWID</span>
-            <span><CheckCircle2 size={14} /> Roblox</span>
-            <span><CheckCircle2 size={14} /> Discord</span>
-            <span><CheckCircle2 size={14} /> BYO providers</span>
+
+          <div className="heroStatus">
+            <span><i /> Railway Claudium backend</span>
+            <span>HWID / Roblox / Discord bindings</span>
+            <span>LootLabs / Linkvertise / Boostellar</span>
           </div>
         </div>
 
-        <aside className="servicePreview">
-          <div className="previewHead">
-            <div className="previewBrand">
-              <img src="/claudmor-mark.svg" alt="" />
-              <div><strong>Magnify Hub</strong><span>example service</span></div>
+        <aside className="heroPanel">
+          <div className="heroPanelTop">
+            <div>
+              <span className="panelLabel">SERVICE</span>
+              <strong>Magnify Hub</strong>
             </div>
-            <span className="liveDot">live</span>
+            <span className="panelState">active</span>
           </div>
-          <dl className="previewRows">
-            <div><dt>Authentication</dt><dd>HWID + Roblox UserId</dd></div>
-            <div><dt>Provider flow</dt><dd>LootLabs → Linkvertise</dd></div>
-            <div><dt>Key duration</dt><dd>24 hours</dd></div>
-            <div><dt>Obfuscator</dt><dd>Claudium / ready</dd></div>
-          </dl>
-          <div className="previewCode">
-            <SquareTerminal size={16} />
-            <code>auth.verify(key, hwid, userId)</code>
-            <span>200</span>
+
+          <div className="heroPanelRows">
+            <div>
+              <span>Key policy</span>
+              <strong>HWID + Roblox UserId</strong>
+            </div>
+            <div>
+              <span>Default script</span>
+              <strong>main.lua</strong>
+            </div>
+            <div>
+              <span>Universe 286090429</span>
+              <strong>prison.lua</strong>
+            </div>
+            <div>
+              <span>Provider</span>
+              <strong>LootLabs</strong>
+            </div>
+          </div>
+
+          <div className="heroPanelCode">
+            <span>resolve</span>
+            <code>game.PlaceId → script route</code>
+            <b>200</b>
           </div>
         </aside>
       </section>
 
-      <section className="homeSection workflowSection" id="workflow">
-        <div className="sectionIntro">
-          <div className="eyebrow">WORKFLOW</div>
-          <h2>Four decisions, then ship.</h2>
-          <p>No wizard maze. Each step maps directly to something you control in the dashboard.</p>
+      <section className="productSection" id="product">
+        <div className="productIntro">
+          <span className="sectionIndex">01</span>
+          <div>
+            <h2>One workspace per account.</h2>
+            <p>
+              Every user manages their own services, keys, scripts, providers,
+              and loader routes. Your owner key only skips reward gates.
+            </p>
+          </div>
         </div>
-        <div className="stepList">
-          {steps.map(step => {
-            const Icon = step.icon;
-            return (
-              <div className="stepRow" key={step.n}>
-                <span className="stepNum">{step.n}</span>
-                <Icon size={19} strokeWidth={1.7} />
-                <div><strong>{step.title}</strong><p>{step.body}</p></div>
-              </div>
-            );
-          })}
+
+        <div className="productRows">
+          {rows.map(({ icon: Icon, title, body }) => (
+            <div className="productRow" key={title}>
+              <Icon size={18} strokeWidth={1.7} />
+              <strong>{title}</strong>
+              <p>{body}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="homeSection" id="features">
-        <div className="sectionIntro">
-          <div className="eyebrow">FEATURES</div>
-          <h2>Useful controls, not dashboard filler.</h2>
-          <p>Claudmor keeps the things you actually change close to the service they affect.</p>
-        </div>
-        <div className="featureList">
-          {features.map(feature => {
-            const Icon = feature.icon;
-            return (
-              <div className="featureRow" key={feature.title}>
-                <Icon size={18} strokeWidth={1.7} />
-                <div><strong>{feature.title}</strong><p>{feature.body}</p></div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="homeSection quickStart">
-        <div className="quickCopy">
-          <div className="eyebrow">INTEGRATION</div>
-          <h2>The client stays small.</h2>
+      <section className="routingSection" id="routing">
+        <div className="routingCopy">
+          <span className="sectionIndex">02</span>
+          <h2>Route games without shipping multiple loaders.</h2>
           <p>
-            Treat anything delivered to the executor as public. Claudmor keeps secrets,
-            provider verification, account checks, and bootstrap decisions on the server.
+            One service can return different scripts for different Roblox places or universes.
+            Place routes win first, then universe routes, then the default.
           </p>
-          <Link href="/dashboard/scripts" className="inlineLink">Generate an integration <ArrowRight size={14} /></Link>
+          <Link href="/dashboard/routes" className="inlineAction">
+            Configure loader routes <ArrowRight size={14} />
+          </Link>
         </div>
-        <div className="codePanel">
-          <div className="codePanelHead"><Code2 size={15} /> client.lua</div>
-          <pre>{sample}</pre>
+
+        <div className="routeTable">
+          <div className="routeTableHead">
+            <span>Match</span>
+            <span>ID</span>
+            <span>Script</span>
+          </div>
+          <div className="routeTableRow">
+            <span>Place</span>
+            <code>155615604</code>
+            <strong>prison.lua</strong>
+          </div>
+          <div className="routeTableRow">
+            <span>Universe</span>
+            <code>286090429</code>
+            <strong>main.lua</strong>
+          </div>
+          <div className="routeTableRow">
+            <span>Default</span>
+            <code>—</code>
+            <strong>fallback.lua</strong>
+          </div>
         </div>
       </section>
 
-      <section className="communityStrip">
+      <section className="siteBottom">
         <div>
-          <div className="eyebrow">COMMUNITY</div>
-          <h2>Built by larpcorrupted.</h2>
-          <p>Project updates, support, and Claudium releases live in the Discord.</p>
+          <KeyRound size={18} />
+          <h3>Keys stay simple.</h3>
+          <p>Create, bind, expire, revoke, and reset them from the service that owns them.</p>
         </div>
-        <div className="communityActions">
-          <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer"><MessageCircle size={16} /> Discord <ExternalLink size={13} /></a>
-          <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">guns.lol <ExternalLink size={13} /></a>
+        <div>
+          <Code2 size={18} />
+          <h3>Scripts stay private.</h3>
+          <p>Source is encrypted at rest and the public loader never needs your service management secret.</p>
         </div>
       </section>
 
-      <footer className="homeFooter">
-        <Link href="/" className="footerBrand"><img src="/claudmor-mark.svg" alt="" /> Claudmor</Link>
-        <span>Authentication for Claudium.</span>
-        <Link href="/dashboard">Dashboard <ArrowRight size={13} /></Link>
+      <footer className="siteFooter">
+        <Link href="/" className="siteBrand footerBrand">
+          <img src="/claudmor-mark.svg" alt="" />
+          <span>Claudmor</span>
+        </Link>
+
+        <span>Built by larpcorrupted</span>
+
+        <div>
+          <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">Discord <ExternalLink size={12} /></a>
+          <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">guns.lol <ExternalLink size={12} /></a>
+        </div>
       </footer>
     </main>
   );
