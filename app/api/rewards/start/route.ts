@@ -139,9 +139,14 @@ export async function POST(req: Request) {
       data = JSON.parse(raw);
     } catch {}
 
+    const messageItem =
+      Array.isArray(data?.message) && data.message.length > 0
+        ? data.message[0]
+        : data?.message;
+
     const lootUrl =
-      typeof data?.message?.loot_url === "string"
-        ? data.message.loot_url
+      typeof messageItem?.loot_url === "string"
+        ? messageItem.loot_url
         : "";
 
     if (!upstream.ok || !lootUrl) {
@@ -150,9 +155,11 @@ export async function POST(req: Request) {
       const lootLabsMessage =
         typeof data?.message === "string"
           ? data.message
-          : typeof data?.error === "string"
-            ? data.error
-            : raw.slice(0, 500);
+          : Array.isArray(data?.message)
+            ? JSON.stringify(data.message)
+            : typeof data?.error === "string"
+              ? data.error
+              : raw.slice(0, 500);
 
       return noStoreJson({
         ok: false,
