@@ -13,7 +13,7 @@ import {
   PlugZap,
   ServerCog,
   ShieldCheck,
-  TerminalSquare,
+  SquareTerminal,
   Webhook
 } from "lucide-react";
 
@@ -97,7 +97,7 @@ export default function Home() {
             <div><dt>Obfuscator</dt><dd>Claudium / ready</dd></div>
           </dl>
           <div className="previewCode">
-            <TerminalSquare size={16} />
+            <SquareTerminal size={16} />
             <code>auth.verify(key, hwid, userId)</code>
             <span>200</span>
           </div>
