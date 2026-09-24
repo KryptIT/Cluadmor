@@ -1,4 +1,5 @@
 import { runClaudium } from "@/lib/claudium";
+import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { sql } from "@/lib/db";
 import { buildLoader } from "@/lib/loader-template";
 import { noStoreJson } from "@/lib/security";
@@ -27,6 +28,7 @@ async function ownedService(req: Request, serviceId: string) {
 }
 
 export async function GET(req: Request) {
+  await ensureWorkspaceSchema();
   const serviceId = new URL(req.url).searchParams.get("serviceId") || "";
   if (!serviceId) return noStoreJson({ ok: false, error: "missing_service_id" }, 400);
 
@@ -45,6 +47,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  await ensureWorkspaceSchema();
   let body: { serviceId?: string; protect?: boolean };
   try { body = await req.json(); }
   catch { return noStoreJson({ ok: false, error: "invalid_json" }, 400); }
