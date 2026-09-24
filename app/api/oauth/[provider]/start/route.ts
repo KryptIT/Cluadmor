@@ -42,7 +42,13 @@ export async function GET(
     url.searchParams.set("prompt", "select_account");
   }
 
-  const response = Response.redirect(url, 302);
+  const response = new Response(null, {
+    status: 302,
+    headers: {
+      "Location": url.toString(),
+      "Cache-Control": "no-store"
+    }
+  });
   response.headers.append("Set-Cookie", oauthStateCookie(provider, state));
   return response;
 }
