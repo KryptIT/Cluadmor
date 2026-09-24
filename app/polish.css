@@ -127,3 +127,14 @@ a:active,button:active{transform:translateY(1px)}
   html{scroll-behavior:auto}
   *,*::before,*::after{transition:none!important;animation-duration:.001ms!important}
 }
+
+.socialAuthPanel{padding:24px}
+.socialAuthCopy{margin-top:22px}
+.socialButtons{display:grid;gap:10px;margin-top:22px}
+.socialButton{height:46px;display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;padding:0 13px;border:1px solid #263238;border-radius:5px;background:#0b1114;color:#dce6ea;font-size:12px;font-weight:600}
+.socialButton:hover{border-color:#3b4e57;background:#10181c}
+.socialMark{width:26px;height:26px;display:grid;place-items:center;border:1px solid #33434b;border-radius:4px;background:#080b0d;color:#dce6ea;font:12px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.googleButton .socialMark{color:#e7ecef}
+.discordButton .socialMark{color:#aebdff}
+.authSecurity{display:flex;align-items:flex-start;gap:9px;margin-top:18px;padding:12px;border-left:2px solid #37616a;background:#0a1215;color:#6f7f86;font-size:10px;line-height:1.5}
+.authSecurity svg{flex:0 0 auto;color:#78cbd5}
