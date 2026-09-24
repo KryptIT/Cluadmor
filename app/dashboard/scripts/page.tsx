@@ -3,24 +3,29 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Check,
   Code2,
+  Coins,
   Copy,
   FileCode2,
   KeyRound,
-  Play,
+  Plus,
   RefreshCw,
   Save,
+  ShieldCheck,
   Sparkles
 } from "lucide-react";
 
 type Service = { id: string; name: string };
+
 type SavedScript = {
   id: string;
   name: string;
   service_id: string;
   service_name: string;
   updated_at: string;
+  obfuscated_at?: string | null;
+  obfuscation_preset?: string;
+  has_build?: boolean;
 };
 
 export default function ScriptsPage() {
@@ -28,21 +33,30 @@ export default function ScriptsPage() {
   const [ownerBypass, setOwnerBypass] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [scripts, setScripts] = useState<SavedScript[]>([]);
+
+  const [scriptId, setScriptId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [name, setName] = useState("script.lua");
-  const [source, setSource] = useState('print("hi claudium")');
+  const [source, setSource] = useState("");
   const [preset, setPreset] = useState("executor");
   const [output, setOutput] = useState("");
+  const [obfuscatedAt, setObfuscatedAt] = useState<string | null>(null);
+  const [buildStale, setBuildStale] = useState(false);
+
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
 
   const selectedService = useMemo(
-    () => services.find(s => s.id === serviceId),
+    () => services.find(service => service.id === serviceId),
     [services, serviceId]
   );
 
   async function load() {
-    const servicesRes = await fetch("/api/workspace/services", { cache: "no-store" });
+    const [servicesRes, scriptsRes] = await Promise.all([
+      fetch("/api/workspace/services", { cache: "no-store" }),
+      fetch("/api/workspace/scripts", { cache: "no-store" })
+    ]);
+
     if (servicesRes.status === 401) {
       setAuthenticated(false);
       setServices([]);
@@ -52,12 +66,13 @@ export default function ScriptsPage() {
 
     const serviceData = await servicesRes.json();
     const list = serviceData.services || [];
+
     setAuthenticated(true);
     setOwnerBypass(!!serviceData.ownerBypass);
     setServices(list);
+
     if (!serviceId && list[0]) setServiceId(list[0].id);
 
-    const scriptsRes = await fetch("/api/workspace/scripts", { cache: "no-store" });
     if (scriptsRes.ok) {
       const scriptData = await scriptsRes.json();
       setScripts(scriptData.scripts || []);
@@ -66,23 +81,53 @@ export default function ScriptsPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function saveScript() {
-    if (!serviceId || !name.trim() || !source.trim()) return;
+  function newScript() {
+    setScriptId("");
+    setName("script.lua");
+    setSource("");
+    setOutput("");
+    setPreset("executor");
+    setObfuscatedAt(null);
+    setBuildStale(false);
+    setMessage("");
+    if (!serviceId && services[0]) setServiceId(services[0].id);
+  }
+
+  async function saveScript(): Promise<string | null> {
+    if (!serviceId || !name.trim() || !source.trim()) {
+      setMessage("Choose a service and enter source first.");
+      return null;
+    }
+
     setBusy("save");
     setMessage("");
+
     try {
       const res = await fetch("/api/workspace/scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceId, name, source })
+        body: JSON.stringify({
+          id: scriptId || undefined,
+          serviceId,
+          name,
+          source,
+          preset
+        })
       });
+
       const data = await res.json();
+
       if (!res.ok) {
-        setMessage(data.error || "Could not save script.");
-        return;
+        setMessage(data.detail || data.error || "Could not save source.");
+        return null;
       }
-      setMessage("Saved.");
+
+      const id = data.script?.id || scriptId;
+      setScriptId(id);
+      setBuildStale(!!obfuscatedAt);
+      setMessage("Source saved.");
       await load();
+      return id;
     } finally {
       setBusy("");
     }
@@ -91,54 +136,76 @@ export default function ScriptsPage() {
   async function openScript(id: string) {
     setBusy(id);
     setMessage("");
+
     try {
-      const res = await fetch("/api/workspace/scripts?id=" + encodeURIComponent(id), { cache: "no-store" });
+      const res = await fetch(
+        "/api/workspace/scripts?id=" + encodeURIComponent(id),
+        { cache: "no-store" }
+      );
+
       const data = await res.json();
+
       if (!res.ok) {
-        setMessage(data.error || "Could not load script.");
+        setMessage(data.detail || data.error || "Could not load script.");
         return;
       }
+
+      setScriptId(data.script.id);
       setName(data.script.name);
       setServiceId(data.script.serviceId);
       setSource(data.script.source || "");
-      setOutput("");
+      setOutput(data.script.obfuscated || "");
+      setPreset(data.script.preset || "executor");
+      setObfuscatedAt(data.script.obfuscatedAt || null);
+      setBuildStale(!!data.script.buildStale);
     } finally {
       setBusy("");
     }
   }
 
-  async function obfuscate() {
-    if (!source.trim()) return;
-    setBusy("obfuscate");
+  async function build() {
+    let id = scriptId;
+
+    if (!id) {
+      const saved = await saveScript();
+      if (!saved) return;
+      id = saved;
+    } else {
+      const saved = await saveScript();
+      if (!saved) return;
+      id = saved;
+    }
+
+    setBusy("build");
     setMessage("");
-    setOutput("");
+
     try {
-      const res = await fetch("/api/workspace/obfuscate", {
+      const res = await fetch("/api/workspace/scripts/obfuscate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source, preset })
+        body: JSON.stringify({ scriptId: id, preset })
       });
-      const text = await res.text();
-      if (!res.ok) {
-        try {
-          const parsed = JSON.parse(text);
-          if (res.status === 402 && parsed.error === "obfuscation_credit_required") {
-            setMessage("One obfuscation credit is required. Complete the reward step or enable the owner bypass.");
-          } else {
-            setMessage(parsed.detail || parsed.error || "Claudium failed.");
-          }
-        } catch {
-          setMessage(text || "Claudium failed.");
-        }
+
+      const data = await res.json();
+
+      if (res.status === 402 && data.error === "obfuscation_credit_required") {
+        setMessage("You need 1 Claudium token to build this script.");
         return;
       }
 
-      try {
-        const parsed = JSON.parse(text);
-        setOutput(parsed.output || parsed.result || text);
-      } catch {
-        setOutput(text);
+      if (!res.ok) {
+        setMessage(data.detail || data.error || "Claudium failed.");
+        return;
       }
+
+      setOutput(data.output || "");
+      setObfuscatedAt(new Date().toISOString());
+      setBuildStale(false);
+      setMessage(data.bypassedCredit
+        ? "Protected build updated with owner bypass."
+        : "Protected build updated. 1 token used.");
+
+      await load();
     } finally {
       setBusy("");
     }
@@ -147,22 +214,27 @@ export default function ScriptsPage() {
   async function getObfuscationCredit() {
     setBusy("reward");
     setMessage("");
+
     try {
       const res = await fetch("/api/rewards/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "OBFUSCATION" })
       });
+
       const data = await res.json();
+
       if (!res.ok) {
-        setMessage(data.error || "Could not start reward flow.");
+        setMessage(data.detail || data.error || "Could not start reward flow.");
         return;
       }
+
       if (data.bypass) {
         setOwnerBypass(true);
         setMessage("Owner bypass active.");
         return;
       }
+
       if (data.url) window.location.href = data.url;
     } finally {
       setBusy("");
@@ -170,27 +242,34 @@ export default function ScriptsPage() {
   }
 
   async function copyOutput() {
-    if (output) {
-      await navigator.clipboard.writeText(output);
-      setMessage("Output copied.");
-    }
+    if (!output) return;
+    await navigator.clipboard.writeText(output);
+    setMessage("Protected build copied.");
   }
 
   return (
     <>
       <div className="pageHead">
         <div>
-          <span className="muted">Claudium</span>
-          <h1>Lua scripts</h1>
-          <p>Save scripts under a service and run Claudium directly from the dashboard.</p>
+          <span className="muted">Script storage</span>
+          <h1>Scripts</h1>
+          <p>Keep editable source privately, store the last Claudium build, and route only protected builds to loaders.</p>
         </div>
+
+        <button
+          className="secondaryBtn"
+          disabled={authenticated !== true}
+          onClick={newScript}
+        >
+          <Plus size={14}/> New script
+        </button>
       </div>
 
       {authenticated === false && (
         <div className="notice ownerNotice">
           <div>
             <strong>Sign in to use your script workspace.</strong>
-            <span>Every Claudmor account can save scripts for its own services. Owner mode only skips obfuscation rewards.</span>
+            <span>Use Google or Discord to access your own services and stored source.</span>
           </div>
           <Link className="secondaryBtn" href="/login"><KeyRound size={14}/> Sign in</Link>
         </div>
@@ -200,14 +279,18 @@ export default function ScriptsPage() {
         <div className="notice ownerNotice">
           <div>
             <strong>Create a service first.</strong>
-            <span>Scripts belong to your service and can then be selected by place/universe loader routes.</span>
+            <span>Every stored script belongs to one service.</span>
           </div>
           <Link className="secondaryBtn" href="/dashboard/services">Create service</Link>
         </div>
       )}
+
       {authenticated === true && ownerBypass && (
         <div className="notice ownerNotice">
-          <div><strong>Owner bypass active.</strong><span>Claudium runs here do not consume obfuscation credits.</span></div>
+          <div>
+            <strong>Owner bypass active.</strong>
+            <span>Save/edit normally; re-obfuscation does not consume tokens for your account.</span>
+          </div>
           <Link className="secondaryBtn" href="/dashboard/settings">Settings</Link>
         </div>
       )}
@@ -215,25 +298,51 @@ export default function ScriptsPage() {
       <div className="scriptWorkspace">
         <section className="panelCard scriptEditor">
           <div className="panelTitle">
-            <div><span className="iconBox"><Code2 size={15}/></span><strong>Editor</strong></div>
-            <span className="editorService">{selectedService?.name || "No service"}</span>
+            <div>
+              <span className="iconBox"><Code2 size={15}/></span>
+              <strong>{scriptId ? "Edit source" : "New source file"}</strong>
+            </div>
+
+            <span className="editorService">
+              {selectedService?.name || "No service"}
+            </span>
           </div>
 
           <div className="scriptMeta">
             <label>
               Service
-              <select className="input" value={serviceId} onChange={e => setServiceId(e.target.value)} disabled={authenticated !== true}>
+              <select
+                className="input"
+                value={serviceId}
+                onChange={e => setServiceId(e.target.value)}
+                disabled={authenticated !== true}
+              >
                 <option value="">Select service...</option>
-                {services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}
+                {services.map(service => (
+                  <option key={service.id} value={service.id}>{service.name}</option>
+                ))}
               </select>
             </label>
+
             <label>
-              Script name
-              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="script.lua" disabled={authenticated !== true}/>
+              File name
+              <input
+                className="input"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="main.lua"
+                disabled={authenticated !== true}
+              />
             </label>
+
             <label>
               Claudium preset
-              <select className="input" value={preset} onChange={e => setPreset(e.target.value)} disabled={authenticated !== true}>
+              <select
+                className="input"
+                value={preset}
+                onChange={e => setPreset(e.target.value)}
+                disabled={authenticated !== true}
+              >
                 <option value="executor">executor</option>
                 <option value="roblox">roblox</option>
                 <option value="luau">luau</option>
@@ -243,30 +352,75 @@ export default function ScriptsPage() {
           </div>
 
           <label className="sourceLabel">
-            Source
+            Unobfuscated source
             <textarea
               className="sourceEditor"
               value={source}
-              onChange={e => setSource(e.target.value)}
+              onChange={e => {
+                setSource(e.target.value);
+                if (obfuscatedAt) setBuildStale(true);
+              }}
               spellCheck={false}
               disabled={authenticated !== true}
+              placeholder={'print("hello from my script")'}
             />
           </label>
 
-          <div className="editorActions">
-            <button className="secondaryBtn" disabled={authenticated !== true || busy !== "" || !serviceId} onClick={saveScript}>
-              {busy === "save" ? <RefreshCw size={14} className="spin"/> : <Save size={14}/>}
-              Save script
-            </button>
-            <button className="primaryBtn" disabled={authenticated !== true || busy !== "" || !source.trim()} onClick={obfuscate}>
-              {busy === "obfuscate" ? <RefreshCw size={14} className="spin"/> : <Play size={14}/>}
-              Obfuscate
-            </button>
-            {!ownerBypass && authenticated === true && (
-              <button className="secondaryBtn" disabled={busy !== ""} onClick={getObfuscationCredit}>
-                <Sparkles size={14}/> Get 1 credit
+          <div className="scriptBuildBar">
+            <div>
+              <span className={
+                !obfuscatedAt
+                  ? "buildStatus buildMissing"
+                  : buildStale
+                    ? "buildStatus buildStale"
+                    : "buildStatus buildReady"
+              }>
+                {!obfuscatedAt
+                  ? "no protected build"
+                  : buildStale
+                    ? "protected build is stale"
+                    : "protected build ready"}
+              </span>
+
+              {obfuscatedAt && (
+                <small>Built {new Date(obfuscatedAt).toLocaleString()}</small>
+              )}
+            </div>
+
+            <div className="editorActions">
+              <button
+                className="secondaryBtn"
+                disabled={authenticated !== true || busy !== "" || !serviceId || !source.trim()}
+                onClick={() => saveScript()}
+              >
+                {busy === "save"
+                  ? <RefreshCw size={14} className="spin"/>
+                  : <Save size={14}/>}
+                Save source
               </button>
-            )}
+
+              <button
+                className="primaryBtn"
+                disabled={authenticated !== true || busy !== "" || !serviceId || !source.trim()}
+                onClick={build}
+              >
+                {busy === "build"
+                  ? <RefreshCw size={14} className="spin"/>
+                  : <ShieldCheck size={14}/>}
+                Re-obfuscate
+                {!ownerBypass && <span className="tokenCost"><Coins size={12}/>1</span>}
+              </button>
+
+              {!ownerBypass && authenticated === true && (
+                <button
+                  className="secondaryBtn"
+                  disabled={busy !== ""}
+                  onClick={getObfuscationCredit}
+                >
+                  <Sparkles size={14}/> Get token
+                </button>
+              )}
+            </div>
           </div>
 
           {message && <div className="settingsMessage">{message}</div>}
@@ -274,25 +428,52 @@ export default function ScriptsPage() {
 
         <aside className="panelCard scriptLibrary">
           <div className="panelTitle">
-            <div><span className="iconBox"><FileCode2 size={15}/></span><strong>Saved scripts</strong></div>
+            <div>
+              <span className="iconBox"><FileCode2 size={15}/></span>
+              <strong>Stored files</strong>
+            </div>
             <button className="iconButton" onClick={load}><RefreshCw size={14}/></button>
           </div>
 
           {scripts.length === 0 ? (
             <div className="emptyState">
               <div className="emptyIcon"><FileCode2 size={18}/></div>
-              <strong>No saved scripts</strong>
-              <p>Save the current editor contents to keep it under this service.</p>
+              <strong>No scripts yet</strong>
+              <p>Create a source file and save it under a service.</p>
             </div>
           ) : (
             <div className="savedScriptList">
-              {scripts.map(script => (
-                <button className="savedScriptRow" key={script.id} onClick={() => openScript(script.id)}>
-                  <FileCode2 size={15}/>
-                  <span><strong>{script.name}</strong><small>{script.service_name}</small></span>
-                  {busy === script.id ? <RefreshCw size={13} className="spin"/> : <span className="openHint">open</span>}
-                </button>
-              ))}
+              {scripts.map(script => {
+                const stale =
+                  !!script.obfuscated_at &&
+                  new Date(script.updated_at).getTime() > new Date(script.obfuscated_at).getTime();
+
+                return (
+                  <button
+                    className={"savedScriptRow " + (script.id === scriptId ? "selected" : "")}
+                    key={script.id}
+                    onClick={() => openScript(script.id)}
+                  >
+                    <FileCode2 size={15}/>
+                    <span>
+                      <strong>{script.name}</strong>
+                      <small>{script.service_name}</small>
+                    </span>
+
+                    {busy === script.id
+                      ? <RefreshCw size={13} className="spin"/>
+                      : <span className={
+                          !script.has_build
+                            ? "scriptBuildTag missing"
+                            : stale
+                              ? "scriptBuildTag stale"
+                              : "scriptBuildTag ready"
+                        }>
+                          {!script.has_build ? "raw" : stale ? "stale" : "built"}
+                        </span>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </aside>
@@ -300,14 +481,25 @@ export default function ScriptsPage() {
 
       <section className="panelCard outputPanel">
         <div className="panelTitle">
-          <div><span className="iconBox"><Check size={15}/></span><strong>Claudium output</strong></div>
-          <button className="secondaryBtn" disabled={!output} onClick={copyOutput}><Copy size={13}/> Copy</button>
+          <div>
+            <span className="iconBox"><ShieldCheck size={15}/></span>
+            <strong>Last protected build</strong>
+          </div>
+
+          <button
+            className="secondaryBtn"
+            disabled={!output}
+            onClick={copyOutput}
+          >
+            <Copy size={13}/> Copy
+          </button>
         </div>
+
         <textarea
           className="outputEditor"
           value={output}
           readOnly
-          placeholder="Obfuscated output appears here."
+          placeholder="Run Re-obfuscate to create the protected build that loaders are allowed to deliver."
           spellCheck={false}
         />
       </section>
