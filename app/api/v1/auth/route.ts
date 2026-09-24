@@ -1,6 +1,7 @@
 import { sql } from "@/lib/db";
 import { clientIp, digest, noStoreJson, normalizeHwid } from "@/lib/security";
 import { issueSession } from "@/lib/session";
+import { recordTelemetry } from "@/lib/telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +41,11 @@ export async function POST(req: Request) {
     return noStoreJson({ ok: false, error: "invalid_service" }, 404);
   }
 
+  const hwid = normalizeHwid(body.hwid);
+  const hwidHash = digest(hwid);
+  const ipHash = digest(clientIp(req.headers));
   const keyHash = digest(body.key);
+
   const rows = await sql`
     SELECT id, hwid_hash, roblox_user_id, roblox_username, discord_user_id,
            expires_at, revoked_at
@@ -51,15 +56,52 @@ export async function POST(req: Request) {
   `;
 
   const key = rows[0] as any;
-  if (!key || key.revoked_at || (key.expires_at && new Date(key.expires_at).getTime() <= Date.now())) {
+
+  if (!key) {
+    await recordTelemetry({
+      serviceId: service.id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash,
+      reason: "invalid_key"
+    });
     return noStoreJson({ ok: false, error: "invalid_key" }, 401);
   }
 
-  const hwid = normalizeHwid(body.hwid);
-  const hwidHash = digest(hwid);
+  if (key.revoked_at) {
+    await recordTelemetry({
+      serviceId: service.id,
+      keyId: key.id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash,
+      reason: "revoked_key"
+    });
+    return noStoreJson({ ok: false, error: "invalid_key" }, 401);
+  }
+
+  if (key.expires_at && new Date(key.expires_at).getTime() <= Date.now()) {
+    await recordTelemetry({
+      serviceId: service.id,
+      keyId: key.id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash,
+      reason: "expired_key"
+    });
+    return noStoreJson({ ok: false, error: "invalid_key" }, 401);
+  }
 
   if (service.require_hwid) {
     if (key.hwid_hash && key.hwid_hash !== hwidHash) {
+      await recordTelemetry({
+        serviceId: service.id,
+        keyId: key.id,
+        eventType: "AUTH_REJECTED",
+        hwidHash,
+        ipHash,
+        reason: "hwid_mismatch"
+      });
       return noStoreJson({ ok: false, error: "hwid_mismatch" }, 403);
     }
 
@@ -77,6 +119,14 @@ export async function POST(req: Request) {
     service.require_roblox_user_id &&
     String(key.roblox_user_id || "") !== String(body.robloxUserId || "")
   ) {
+    await recordTelemetry({
+      serviceId: service.id,
+      keyId: key.id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash,
+      reason: "roblox_user_id_mismatch"
+    });
     return noStoreJson({ ok: false, error: "roblox_user_id_mismatch" }, 403);
   }
 
@@ -85,6 +135,14 @@ export async function POST(req: Request) {
     String(key.roblox_username || "").toLowerCase() !==
       String(body.robloxUsername || "").toLowerCase()
   ) {
+    await recordTelemetry({
+      serviceId: service.id,
+      keyId: key.id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash,
+      reason: "roblox_username_mismatch"
+    });
     return noStoreJson({ ok: false, error: "roblox_username_mismatch" }, 403);
   }
 
@@ -92,6 +150,14 @@ export async function POST(req: Request) {
     service.require_discord_user_id &&
     String(key.discord_user_id || "") !== String(body.discordUserId || "")
   ) {
+    await recordTelemetry({
+      serviceId: service.id,
+      keyId: key.id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash,
+      reason: "discord_user_id_mismatch"
+    });
     return noStoreJson({ ok: false, error: "discord_user_id_mismatch" }, 403);
   }
 
@@ -101,9 +167,17 @@ export async function POST(req: Request) {
       ${service.id},
       ${key.id},
       'AUTH_OK',
-      ${digest(clientIp(req.headers))}
+      ${ipHash}
     )
   `;
+
+  await recordTelemetry({
+    serviceId: service.id,
+    keyId: key.id,
+    eventType: "AUTH_SUCCESS",
+    hwidHash,
+    ipHash
+  });
 
   return noStoreJson({
     ok: true,
