@@ -5,9 +5,24 @@ CREATE TABLE IF NOT EXISTS users (
   email text UNIQUE,
   username text UNIQUE,
   password_hash text,
+  display_name text,
+  avatar_url text,
   obfuscation_credits integer NOT NULL DEFAULT 0 CHECK (obfuscation_credits >= 0),
   service_creation_credits integer NOT NULL DEFAULT 0 CHECK (service_creation_credits >= 0),
   created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS oauth_accounts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider text NOT NULL CHECK (provider IN ('google','discord')),
+  provider_user_id text NOT NULL,
+  email text,
+  display_name text,
+  avatar_url text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(provider, provider_user_id)
 );
 
 CREATE TABLE IF NOT EXISTS services (
@@ -28,6 +43,9 @@ CREATE TABLE IF NOT EXISTS service_scripts (
   service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
   name text NOT NULL,
   source_ciphertext text NOT NULL,
+  obfuscated_ciphertext text,
+  obfuscated_at timestamptz,
+  obfuscation_preset text NOT NULL DEFAULT 'executor',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -42,6 +60,12 @@ CREATE TABLE IF NOT EXISTS script_routes (
   enabled boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(service_id, match_type, match_value)
+);
+
+CREATE TABLE IF NOT EXISTS service_loaders (
+  service_id uuid PRIMARY KEY REFERENCES services(id) ON DELETE CASCADE,
+  loader_ciphertext text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS license_keys (
@@ -112,6 +136,24 @@ CREATE TABLE IF NOT EXISTS service_key_settings (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS telemetry_events (
+  id bigserial PRIMARY KEY,
+  service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  key_id uuid REFERENCES license_keys(id) ON DELETE SET NULL,
+  script_id uuid REFERENCES service_scripts(id) ON DELETE SET NULL,
+  event_type text NOT NULL CHECK (
+    event_type IN ('AUTH_SUCCESS','AUTH_REJECTED','SCRIPT_DELIVERY','ROUTE_MISS')
+  ),
+  hwid_hash text,
+  ip_hash text,
+  place_id text,
+  universe_id text,
+  route_type text,
+  reason text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS audit_events (
   id bigserial PRIMARY KEY,
   service_id uuid REFERENCES services(id) ON DELETE SET NULL,
@@ -127,3 +169,6 @@ CREATE INDEX IF NOT EXISTS idx_script_routes_service ON script_routes(service_id
 CREATE INDEX IF NOT EXISTS idx_tickets_expiry ON bootstrap_tickets(expires_at);
 CREATE INDEX IF NOT EXISTS idx_rewards_user ON reward_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_service_providers_service ON service_providers(service_id);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user ON oauth_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_telemetry_service_created ON telemetry_events(service_id, created_at DESC);
