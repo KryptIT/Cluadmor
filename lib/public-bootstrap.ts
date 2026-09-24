@@ -1,5 +1,5 @@
 export function buildPublicBootstrap(baseUrl: string, serviceId: string) {
-  const base = baseUrl.replace(/\\/+$/, "");
+  const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 
   return `local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
