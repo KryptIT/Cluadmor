@@ -5,9 +5,8 @@ import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   Copy,
+  ExternalLink,
   FileText,
-  Loader2,
-  LockKeyhole,
   RefreshCw,
   ShieldCheck
 } from "lucide-react";
@@ -18,15 +17,19 @@ export default function LoadersPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState("");
-  const [source, setSource] = useState("");
-  const [protectedLoader, setProtectedLoader] = useState(false);
+  const [oneLiner, setOneLiner] = useState("");
+  const [publicUrl, setPublicUrl] = useState("");
+  const [published, setPublished] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
 
   async function loadServices() {
     const res = await fetch("/api/workspace/services", { cache: "no-store" });
+
     if (res.status === 401) {
       setAuthenticated(false);
+      setServices([]);
       return;
     }
 
@@ -34,46 +37,75 @@ export default function LoadersPage() {
     const list = data.services || [];
     setAuthenticated(true);
     setServices(list);
+
     if (!serviceId && list[0]) setServiceId(list[0].id);
   }
 
-  useEffect(() => { loadServices(); }, []);
+  async function loadLoader(id = serviceId) {
+    if (!id) {
+      setPublished(false);
+      setOneLiner("");
+      setPublicUrl("");
+      return;
+    }
 
-  async function generate(protect: boolean) {
+    const res = await fetch(
+      "/api/workspace/loaders?serviceId=" + encodeURIComponent(id),
+      { cache: "no-store" }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setMessage(data.detail || data.error || "Could not load loader status.");
+      return;
+    }
+
+    setPublished(!!data.published);
+    setOneLiner(data.oneLiner || "");
+    setPublicUrl(data.publicUrl || "");
+    setUpdatedAt(data.updatedAt || null);
+  }
+
+  useEffect(() => { loadServices(); }, []);
+  useEffect(() => {
+    if (serviceId) loadLoader(serviceId);
+  }, [serviceId]);
+
+  async function publish() {
     if (!serviceId) return;
 
-    setBusy(protect ? "protect" : "plain");
+    setBusy("publish");
     setMessage("");
-    setSource("");
 
     try {
       const res = await fetch("/api/workspace/loaders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceId, protect })
+        body: JSON.stringify({ serviceId })
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage(data.detail || data.error || "Could not generate loader.");
+        setMessage(data.detail || data.error || "Could not publish protected loader.");
         return;
       }
 
-      setSource(data.source || "");
-      setProtectedLoader(!!data.protected);
-      setMessage(data.protected
-        ? "Protected loader generated."
-        : "Readable loader generated.");
+      setPublished(true);
+      setOneLiner(data.oneLiner || "");
+      setPublicUrl(data.publicUrl || "");
+      setUpdatedAt(data.updatedAt || new Date().toISOString());
+      setMessage("Protected loader published.");
     } finally {
       setBusy("");
     }
   }
 
-  async function copy() {
-    if (!source) return;
-    await navigator.clipboard.writeText(source);
-    setMessage("Loader copied.");
+  async function copy(value: string) {
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    setMessage("Copied.");
   }
 
   return (
@@ -81,8 +113,8 @@ export default function LoadersPage() {
       <div className="pageHead">
         <div>
           <span className="muted">Loader</span>
-          <h1>Service loaders</h1>
-          <p>Generate the loader your UI library executes after setting getgenv().SCRIPT_KEY.</p>
+          <h1>Service loader</h1>
+          <p>Publish one protected loader URL for each service and copy the loadstring into your UI.</p>
         </div>
       </div>
 
@@ -90,7 +122,7 @@ export default function LoadersPage() {
         <div className="notice ownerNotice">
           <div>
             <strong>Sign in first.</strong>
-            <span>Loaders are generated per service in your own workspace.</span>
+            <span>Loaders are published per service in your Claudmor workspace.</span>
           </div>
           <Link className="secondaryBtn" href="/login">Sign in</Link>
         </div>
@@ -100,7 +132,7 @@ export default function LoadersPage() {
         <div className="notice ownerNotice">
           <div>
             <strong>Create a service first.</strong>
-            <span>A loader needs a service ID to authenticate keys and resolve scripts.</span>
+            <span>The public loader URL belongs to a service.</span>
           </div>
           <Link className="secondaryBtn" href="/dashboard/services">Create service</Link>
         </div>
@@ -108,14 +140,26 @@ export default function LoadersPage() {
 
       <section className="panelCard">
         <div className="panelTitle">
-          <div><span className="iconBox"><FileText size={15}/></span><strong>Generate loader</strong></div>
-          {protectedLoader && <span className="ownerBadge"><ShieldCheck size={13}/> protected</span>}
+          <div>
+            <span className="iconBox"><FileText size={15}/></span>
+            <strong>Published loader</strong>
+          </div>
+
+          {published && (
+            <span className="ownerBadge">
+              <CheckCircle2 size={13}/> live
+            </span>
+          )}
         </div>
 
         <div className="loaderControls">
           <label>
             Service
-            <select className="input" value={serviceId} onChange={e => setServiceId(e.target.value)}>
+            <select
+              className="input"
+              value={serviceId}
+              onChange={e => setServiceId(e.target.value)}
+            >
               <option value="">Select service...</option>
               {services.map(service => (
                 <option key={service.id} value={service.id}>{service.name}</option>
@@ -127,54 +171,77 @@ export default function LoadersPage() {
             <button
               className="primaryBtn"
               disabled={!serviceId || busy !== ""}
-              onClick={() => generate(true)}
+              onClick={publish}
             >
-              {busy === "protect" ? <RefreshCw size={14} className="spin"/> : <LockKeyhole size={14}/>}
-              {busy === "protect" ? "Protecting..." : "Generate protected loader"}
-            </button>
-
-            <button
-              className="secondaryBtn"
-              disabled={!serviceId || busy !== ""}
-              onClick={() => generate(false)}
-            >
-              {busy === "plain" ? <RefreshCw size={14} className="spin"/> : <Loader2 size={14}/>}
-              Readable loader
+              {busy === "publish"
+                ? <RefreshCw size={14} className="spin"/>
+                : <ShieldCheck size={14}/>}
+              {busy === "publish"
+                ? "Protecting..."
+                : published
+                  ? "Re-publish protected loader"
+                  : "Publish protected loader"}
             </button>
           </div>
         </div>
 
         <div className="loaderFlow">
-          <div><span>1</span><strong>UI sets SCRIPT_KEY</strong><small>Your key-system UI writes getgenv().SCRIPT_KEY.</small></div>
-          <div><span>2</span><strong>Server auth</strong><small>Key, HWID, Roblox identity, service and expiry are checked.</small></div>
-          <div><span>3</span><strong>One-use delivery</strong><small>A short-lived ticket selects the PlaceId / UniverseId route.</small></div>
+          <div>
+            <span>1</span>
+            <strong>UI sets SCRIPT_KEY</strong>
+            <small>Your key-system UI writes getgenv().SCRIPT_KEY before running the loader.</small>
+          </div>
+          <div>
+            <span>2</span>
+            <strong>Loader authenticates</strong>
+            <small>Claudmor checks the key, HWID, bindings, expiry, and service.</small>
+          </div>
+          <div>
+            <span>3</span>
+            <strong>Protected build is delivered</strong>
+            <small>The matched PlaceId / UniverseId route returns only the stored obfuscated script.</small>
+          </div>
         </div>
 
-        <textarea
-          className="outputEditor loaderOutput"
-          value={source}
-          readOnly
-          spellCheck={false}
-          placeholder="Generate a loader to see it here."
-        />
+        <div className="loaderPublishBox">
+          <label>
+            Copy this into your script / UI
+            <div className="copyField">
+              <code>{oneLiner || "Publish the loader first."}</code>
+              <button className="iconButton" disabled={!oneLiner} onClick={() => copy(oneLiner)}>
+                <Copy size={14}/>
+              </button>
+            </div>
+          </label>
 
-        <div className="editorActions">
-          <button className="secondaryBtn" disabled={!source} onClick={copy}>
-            <Copy size={14}/> Copy loader
-          </button>
+          <label>
+            Public loader URL
+            <div className="copyField">
+              <code>{publicUrl || "Not published"}</code>
+              <button className="iconButton" disabled={!publicUrl} onClick={() => copy(publicUrl)}>
+                <Copy size={14}/>
+              </button>
+              {publicUrl && (
+                <a className="iconButton" href={publicUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink size={14}/>
+                </a>
+              )}
+            </div>
+          </label>
+
+          {updatedAt && (
+            <small className="loaderUpdated">
+              Last protected build: {new Date(updatedAt).toLocaleString()}
+            </small>
+          )}
         </div>
 
         {message && <div className="settingsMessage">{message}</div>}
       </section>
 
       <section className="hintCard">
-        <strong>Expected usage</strong>
-        <p>Your UI library should set <code>getgenv().SCRIPT_KEY</code> before executing this loader. The key and HWID are sent in POST bodies, not query strings, so they do not end up in normal URL logs.</p>
-      </section>
-
-      <section className="hintCard">
-        <strong>What protects it</strong>
-        <p>The protected loader is obfuscated by Claudium, but the important protection is server-side: no service secret is embedded, script delivery requires a valid key + HWID, and the delivery ticket is short-lived and single-use.</p>
+        <strong>The loader URL is public by design</strong>
+        <p>It contains no service-management secret and no original source. A valid SCRIPT_KEY and server-approved HWID/account session are still required before Claudmor returns a routed protected script.</p>
       </section>
     </>
   );
