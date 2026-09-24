@@ -1,7 +1,7 @@
 export function buildPublicBootstrap(baseUrl: string, serviceId: string) {
-  const base = baseUrl.replace(/\\\/+$/, "");
+  const base = baseUrl.replace(/\\/+$/, "");
 
-  return \`local HttpService = game:GetService("HttpService")
+  return `local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RbxAnalyticsService = game:GetService("RbxAnalyticsService")
 
@@ -66,7 +66,7 @@ while not player do
 end
 
 local response = requestFn({
-    Url = "\${base}/api/v1/loader/runtime",
+    Url = "${base}/api/v1/loader/runtime",
     Method = "POST",
     Headers = {
         ["Content-Type"] = "application/json",
@@ -75,7 +75,7 @@ local response = requestFn({
         ["X-Claudmor-Protocol"] = "1"
     },
     Body = HttpService:JSONEncode({
-        serviceId = "\${serviceId}",
+        serviceId = "${serviceId}",
         key = SCRIPT_KEY,
         hwid = getHwid(),
         robloxUserId = tostring(player.UserId),
@@ -106,5 +106,5 @@ if not chunk then
 end
 
 return chunk()
-\`;
+`;
 }
