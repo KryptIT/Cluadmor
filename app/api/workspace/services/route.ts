@@ -79,14 +79,36 @@ export async function POST(req: Request) {
       serviceSecret: secret,
       ownerBypass: identity.bypassRewards
     }, 201);
-  } catch {
+  } catch (error: any) {
     if (!identity.bypassRewards) {
-      await sql`
-        UPDATE users
-        SET service_creation_credits = service_creation_credits + 1
-        WHERE id = ${identity.userId}
-      `;
+      try {
+        await sql`
+          UPDATE users
+          SET service_creation_credits = service_creation_credits + 1
+          WHERE id = ${identity.userId}
+        `;
+      } catch {}
     }
+
+    const code = String(error?.code || "");
+    const message = String(error?.message || "");
+
+    if (code === "42703" || code === "42P01") {
+      return noStoreJson({
+        ok: false,
+        error: "database_migration_required",
+        detail: "Run db/004_accounts_routes.sql and db/003_owner_scripts.sql against your Neon database."
+      }, 503);
+    }
+
+    if (message.includes("CLAUDMOR_MASTER_SECRET")) {
+      return noStoreJson({
+        ok: false,
+        error: "server_configuration_error",
+        detail: "CLAUDMOR_MASTER_SECRET must be configured and at least 32 characters."
+      }, 503);
+    }
+
     return noStoreJson({ ok: false, error: "service_creation_failed" }, 500);
   }
 }
