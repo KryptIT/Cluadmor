@@ -1,10 +1,12 @@
 import { sql } from "@/lib/db";
+import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { clientIp, digest, noStoreJson } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  await ensureWorkspaceSchema();
   const url = new URL(req.url);
   const configuredSecret = process.env.LOOTLABS_POSTBACK_SECRET || "";
 
