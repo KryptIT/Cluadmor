@@ -1,4 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { accountFromRequest } from "@/lib/account";
 
 const COOKIE = "claudmor_owner";
 
@@ -24,32 +25,50 @@ export function verifyOwnerKey(value: string) {
   return configured.length > 0 && supplied.length > 0 && safeEqualText(supplied, configured);
 }
 
-export function issueOwnerToken(ttlSeconds = 604800) {
+export function issueOwnerToken(userId: string, ttlSeconds = 604800) {
   const payload = Buffer.from(JSON.stringify({
     role: "owner",
+    userId,
     exp: Math.floor(Date.now() / 1000) + ttlSeconds
   })).toString("base64url");
+
   const sig = createHmac("sha256", sessionSecret()).update(payload).digest("base64url");
   return payload + "." + sig;
 }
 
-export function verifyOwnerToken(token: string) {
+export function verifyOwnerToken(token: string): { userId: string } | null {
   const [payload, sig] = token.split(".");
-  if (!payload || !sig) return false;
+  if (!payload || !sig) return null;
+
   const expected = createHmac("sha256", sessionSecret()).update(payload).digest("base64url");
-  if (!safeEqualText(sig, expected)) return false;
+  if (!safeEqualText(sig, expected)) return null;
+
   try {
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    return parsed.role === "owner" && Number(parsed.exp) > Math.floor(Date.now() / 1000);
+    if (
+      parsed.role !== "owner" ||
+      !parsed.userId ||
+      Number(parsed.exp) <= Math.floor(Date.now() / 1000)
+    ) {
+      return null;
+    }
+
+    return { userId: String(parsed.userId) };
   } catch {
-    return false;
+    return null;
   }
 }
 
 export function ownerFromRequest(req: Request) {
+  const account = accountFromRequest(req);
+  if (!account) return false;
+
   const cookie = req.headers.get("cookie") || "";
   const match = cookie.match(/(?:^|;\s*)claudmor_owner=([^;]+)/);
-  return !!match && verifyOwnerToken(decodeURIComponent(match[1]));
+  if (!match) return false;
+
+  const owner = verifyOwnerToken(decodeURIComponent(match[1]));
+  return !!owner && owner.userId === account.userId;
 }
 
 export function ownerCookie(token: string) {
