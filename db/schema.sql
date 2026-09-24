@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS script_routes (
 CREATE TABLE IF NOT EXISTS service_loaders (
   service_id uuid PRIMARY KEY REFERENCES services(id) ON DELETE CASCADE,
   loader_ciphertext text NOT NULL,
+  bootstrap_ciphertext text,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
