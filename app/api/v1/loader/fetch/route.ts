@@ -1,6 +1,6 @@
 import { decryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
-import { digest, noStoreJson, normalizeHwid, opaque } from "@/lib/security";
+import { clientIp, digest, noStoreJson, normalizeHwid, opaque } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +56,22 @@ export async function POST(req: Request) {
 
   const ticket = consumed[0] as any;
 
+  const access = await sql`
+    SELECT k.id
+    FROM license_keys k
+    JOIN services s ON s.id = k.service_id
+    WHERE k.id = ${ticket.key_id}
+      AND s.id = ${ticket.service_id}
+      AND s.enabled = true
+      AND k.revoked_at IS NULL
+      AND (k.expires_at IS NULL OR k.expires_at > now())
+    LIMIT 1
+  `;
+
+  if (!access[0]) {
+    return noStoreJson({ ok: false, error: "license_inactive" }, 403);
+  }
+
   const rows = await sql`
     SELECT r.match_type, r.match_value,
            ss.id AS script_id, ss.name AS script_name,
@@ -103,7 +119,12 @@ export async function POST(req: Request) {
 
   await sql`
     INSERT INTO audit_events(service_id, key_id, kind, ip_hash)
-    VALUES (${ticket.service_id}, ${ticket.key_id}, 'SCRIPT_DELIVERY', ${hwidHash})
+    VALUES (
+      ${ticket.service_id},
+      ${ticket.key_id},
+      'SCRIPT_DELIVERY',
+      ${digest(clientIp(req.headers))}
+    )
   `;
 
   return noStoreJson({
