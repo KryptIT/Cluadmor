@@ -69,7 +69,7 @@ export default function ScriptsPage() {
     setBusy("save");
     setMessage("");
     try {
-      const res = await fetch("/api/owner/scripts", {
+      const res = await fetch("/api/workspace/scripts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ serviceId, name, source })
