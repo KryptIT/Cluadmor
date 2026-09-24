@@ -1,6 +1,7 @@
 import { decryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { clientIp, digest, noStoreJson, normalizeHwid, opaque } from "@/lib/security";
+import { recordTelemetry } from "@/lib/telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,16 @@ export async function POST(req: Request) {
   `;
 
   if (!access[0]) {
+    await recordTelemetry({
+      serviceId: ticket.service_id,
+      keyId: ticket.key_id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash: digest(clientIp(req.headers)),
+      placeId,
+      universeId,
+      reason: "license_inactive"
+    });
     return noStoreJson({ ok: false, error: "license_inactive" }, 403);
   }
 
@@ -99,6 +110,16 @@ export async function POST(req: Request) {
   `;
 
   if (!rows[0]) {
+    await recordTelemetry({
+      serviceId: ticket.service_id,
+      keyId: ticket.key_id,
+      eventType: "ROUTE_MISS",
+      hwidHash,
+      ipHash: digest(clientIp(req.headers)),
+      placeId,
+      universeId,
+      reason: "no_script_route"
+    });
     return noStoreJson({ ok: false, error: "no_script_route" }, 404);
   }
 
@@ -117,15 +138,29 @@ export async function POST(req: Request) {
     String(row.match_value || "")
   ) + payload;
 
+  const ipHash = digest(clientIp(req.headers));
+
   await sql`
     INSERT INTO audit_events(service_id, key_id, kind, ip_hash)
     VALUES (
       ${ticket.service_id},
       ${ticket.key_id},
       'SCRIPT_DELIVERY',
-      ${digest(clientIp(req.headers))}
+      ${ipHash}
     )
   `;
+
+  await recordTelemetry({
+    serviceId: ticket.service_id,
+    keyId: ticket.key_id,
+    scriptId: row.script_id,
+    eventType: "SCRIPT_DELIVERY",
+    hwidHash,
+    ipHash,
+    placeId,
+    universeId,
+    routeType: String(row.match_type)
+  });
 
   return noStoreJson({
     ok: true,
