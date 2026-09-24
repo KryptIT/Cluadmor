@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { clientIp, digest, noStoreJson, normalizeHwid } from "@/lib/security";
 import { issueSession } from "@/lib/session";
 import { recordTelemetry } from "@/lib/telemetry";
@@ -16,6 +17,7 @@ type Body = {
 };
 
 export async function POST(req: Request) {
+  await ensureWorkspaceSchema();
   let body: Body;
 
   try {
