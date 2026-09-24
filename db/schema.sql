@@ -21,6 +21,15 @@ CREATE TABLE IF NOT EXISTS services (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS service_scripts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  source_ciphertext text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS license_keys (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
@@ -99,6 +108,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_keys_service ON license_keys(service_id);
+CREATE INDEX IF NOT EXISTS idx_scripts_service ON service_scripts(service_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_expiry ON bootstrap_tickets(expires_at);
 CREATE INDEX IF NOT EXISTS idx_rewards_user ON reward_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_service_providers_service ON service_providers(service_id);
