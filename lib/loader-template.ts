@@ -1,7 +1,7 @@
 export function buildLoader(baseUrl: string, serviceId: string) {
-  const base = baseUrl.replace(/\\\/+$/, "");
+  const base = baseUrl.replace(/\/+$/, "");
 
-  return \`local HttpService = game:GetService("HttpService")
+  return `local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RbxAnalyticsService = game:GetService("RbxAnalyticsService")
 
@@ -40,7 +40,7 @@ local function post(path, body, headers)
     end
 
     local response = requestFn({
-        Url = "\${base}" .. path,
+        Url = "${base}" .. path,
         Method = "POST",
         Headers = h,
         Body = HttpService:JSONEncode(body or {})
@@ -107,7 +107,7 @@ end
 local hwid = getHwid()
 
 local auth = post("/api/v1/auth", {
-    serviceId = "\${serviceId}",
+    serviceId = "${serviceId}",
     key = SCRIPT_KEY,
     hwid = hwid,
     robloxUserId = tostring(player.UserId),
@@ -165,5 +165,5 @@ if not ok then
 end
 
 return result
-\`;
+`;
 }
