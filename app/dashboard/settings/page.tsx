@@ -65,15 +65,15 @@ export default function SettingsPage() {
 
         <div className="settingsBody">
           <p>
-            Owner mode bypasses Claudmor's monetization gates for this browser session.
-            It can create services and run Claudium without spending LootLabs-earned credits.
+            Owner mode only bypasses Claudmor's monetization gates for your current workspace.
+            It does not give you ownership of other users' services, keys, scripts, or provider settings.
           </p>
 
           {owner === true ? (
             <div className="ownerActive">
               <div>
                 <strong>Owner session authenticated</strong>
-                <small>The raw owner key is not stored in the browser.</small>
+                <small>The raw owner key is not stored in the browser. Reward checks are skipped for this workspace.</small>
               </div>
               <button className="secondaryBtn" onClick={logout}><LogOut size={14}/> Disable owner mode</button>
             </div>
