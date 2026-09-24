@@ -74,6 +74,7 @@ export async function POST(req: Request) {
   let body: {
     serviceId?: string;
     targetServiceId?: string;
+    scriptId?: string;
     matchType?: "PLACE" | "UNIVERSE" | "DEFAULT";
     matchValue?: string;
     priority?: number;
@@ -85,12 +86,8 @@ export async function POST(req: Request) {
     return noStoreJson({ ok: false, error: "invalid_json" }, 400);
   }
 
-  if (!body.serviceId || !body.targetServiceId || !body.matchType) {
+  if (!body.serviceId || !body.targetServiceId || !body.scriptId || !body.matchType) {
     return noStoreJson({ ok: false, error: "missing_fields" }, 400);
-  }
-
-  if (body.serviceId === body.targetServiceId) {
-    return noStoreJson({ ok: false, error: "target_service_must_differ" }, 400);
   }
 
   const matchType = body.matchType;
@@ -105,16 +102,24 @@ export async function POST(req: Request) {
     return noStoreJson({ ok: false, error: "invalid_match_value" }, 400);
   }
 
-  const services = await sql`
-    SELECT id
-    FROM services
-    WHERE owner_id = ${identity.userId}
-      AND enabled = true
-      AND id IN (${body.serviceId}, ${body.targetServiceId})
+  const valid = await sql`
+    SELECT source.id
+    FROM services source
+    JOIN services target
+      ON target.id = ${body.targetServiceId}
+     AND target.owner_id = ${identity.userId}
+     AND target.enabled = true
+    JOIN service_scripts ss
+      ON ss.id = ${body.scriptId}
+     AND ss.service_id = target.id
+    WHERE source.id = ${body.serviceId}
+      AND source.owner_id = ${identity.userId}
+      AND source.enabled = true
+    LIMIT 1
   `;
 
-  if (services.length !== 2) {
-    return noStoreJson({ ok: false, error: "service_not_owned" }, 403);
+  if (!valid[0]) {
+    return noStoreJson({ ok: false, error: "service_or_script_not_owned" }, 403);
   }
 
   const rows = await sql`
@@ -128,7 +133,7 @@ export async function POST(req: Request) {
     )
     VALUES (
       ${body.serviceId},
-      NULL,
+      ${body.scriptId},
       ${body.targetServiceId},
       ${matchType},
       ${matchValue},
@@ -136,13 +141,14 @@ export async function POST(req: Request) {
     )
     ON CONFLICT(service_id, match_type, match_value)
     DO UPDATE SET
-      script_id = NULL,
+      script_id = EXCLUDED.script_id,
       target_service_id = EXCLUDED.target_service_id,
       priority = EXCLUDED.priority,
       enabled = true
     RETURNING
       id,
       service_id,
+      script_id,
       target_service_id,
       match_type,
       match_value,
