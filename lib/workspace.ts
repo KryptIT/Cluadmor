@@ -19,7 +19,18 @@ async function ownerUserId() {
 }
 
 export async function workspaceIdentity(req: Request): Promise<WorkspaceIdentity | null> {
-  if (ownerFromRequest(req)) {
+  const account = accountFromRequest(req);
+  const owner = ownerFromRequest(req);
+
+  if (account) {
+    return {
+      userId: account.userId,
+      bypassRewards: owner,
+      owner
+    };
+  }
+
+  if (owner) {
     return {
       userId: await ownerUserId(),
       bypassRewards: true,
@@ -27,12 +38,5 @@ export async function workspaceIdentity(req: Request): Promise<WorkspaceIdentity
     };
   }
 
-  const account = accountFromRequest(req);
-  if (!account) return null;
-
-  return {
-    userId: account.userId,
-    bypassRewards: false,
-    owner: false
-  };
+  return null;
 }
