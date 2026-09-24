@@ -1,58 +1,89 @@
 import Link from "next/link";
+import {
+  LayoutDashboard,
+  Boxes,
+  PlugZap,
+  KeyRound,
+  Code2,
+  Globe2,
+  Webhook,
+  Key,
+  Search,
+  Coins,
+  ExternalLink
+} from "lucide-react";
 
-const nav = [
-  ["Overview", "/dashboard", "◫"],
-  ["Services", "/dashboard/services", "▦"],
-  ["Providers", "/dashboard/providers", "⌁"],
-  ["Keys", "/dashboard/keys", "⚿"],
-  ["Lua Scripts", "/dashboard/scripts", "<>"],
-  ["Public Pages", "/dashboard/public", "◎"],
-  ["Webhooks", "/dashboard/webhooks", "↗"],
-  ["API Keys", "/dashboard/api-keys", "⚙"]
+const groups = [
+  {
+    label: "Workspace",
+    items: [
+      { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+      { label: "Services", href: "/dashboard/services", icon: Boxes }
+    ]
+  },
+  {
+    label: "Key system",
+    items: [
+      { label: "Providers", href: "/dashboard/providers", icon: PlugZap },
+      { label: "Keys", href: "/dashboard/keys", icon: KeyRound },
+      { label: "Lua scripts", href: "/dashboard/scripts", icon: Code2 },
+      { label: "Public pages", href: "/dashboard/public", icon: Globe2 }
+    ]
+  },
+  {
+    label: "Developer",
+    items: [
+      { label: "Webhooks", href: "/dashboard/webhooks", icon: Webhook },
+      { label: "API keys", href: "/dashboard/api-keys", icon: Key }
+    ]
+  }
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="dash">
       <aside className="sidebar">
-        <Link href="/dashboard" className="brand">
-          <span className="brandMark">C</span>
-          <span>CLAUDMOR</span>
+        <Link href="/" className="brand">
+          <img src="/claudmor-mark.svg" alt="" />
+          <div>
+            <strong>Claudmor</strong>
+            <span>control panel</span>
+          </div>
         </Link>
 
-        <div className="navGroup">
-          <div className="navLabel">WORKSPACE</div>
-          {nav.slice(0, 2).map(([label, href, icon]) => (
-            <Link key={href} href={href} className="navItem"><span>{icon}</span>{label}</Link>
+        <nav className="sideNav">
+          {groups.map(group => (
+            <div className="navGroup" key={group.label}>
+              <div className="navLabel">{group.label}</div>
+              {group.items.map(item => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} className="navItem">
+                    <Icon size={16} strokeWidth={1.8} />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           ))}
-        </div>
-
-        <div className="navGroup">
-          <div className="navLabel">KEY SYSTEM</div>
-          {nav.slice(2, 6).map(([label, href, icon]) => (
-            <Link key={href} href={href} className="navItem"><span>{icon}</span>{label}</Link>
-          ))}
-        </div>
-
-        <div className="navGroup">
-          <div className="navLabel">DEVELOPER</div>
-          {nav.slice(6).map(([label, href, icon]) => (
-            <Link key={href} href={href} className="navItem"><span>{icon}</span>{label}</Link>
-          ))}
-        </div>
+        </nav>
 
         <div className="sidebarBottom">
-          <div className="avatar">X9</div>
-          <div><strong>Workspace</strong><small>Claudmor</small></div>
+          <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">
+            Community <ExternalLink size={13} />
+          </a>
+          <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">
+            larpcorrupted <ExternalLink size={13} />
+          </a>
         </div>
       </aside>
 
       <section className="dashMain">
         <header className="topbar">
-          <div className="crumb">Dashboard</div>
+          <div className="crumb">Claudmor / dashboard</div>
           <div className="topActions">
-            <button className="searchBtn">⌕ Search <kbd>Ctrl K</kbd></button>
-            <Link href="/dashboard/credits" className="creditBtn">◆ Credits</Link>
+            <button className="searchBtn"><Search size={15} /> Search <kbd>Ctrl K</kbd></button>
+            <Link href="/dashboard/credits" className="creditBtn"><Coins size={15} /> Credits</Link>
           </div>
         </header>
         <main className="dashContent">{children}</main>
