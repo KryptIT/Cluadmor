@@ -40,3 +40,38 @@ button:disabled{cursor:not-allowed;opacity:.48}
 .openHint{color:#4f5d64;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace}.outputPanel{margin-top:14px}
 @media(max-width:900px){.scriptWorkspace{grid-template-columns:1fr}.scriptMeta{grid-template-columns:1fr}.serviceRow{grid-template-columns:36px 1fr auto}.serviceLocks{grid-column:2/4;justify-content:flex-start}}
 @media(max-width:620px){.ownerKeyRow,.ownerActive,.ownerNotice,.secretNotice{align-items:stretch;flex-direction:column}.serviceRow{grid-template-columns:36px 1fr}.serviceLocks{grid-column:2}.statusGood,.statusOff{grid-column:2}}
+
+/* polish */
+.brand{gap:12px!important}
+.brand img{width:36px!important;height:36px!important;flex:0 0 36px!important}
+.primaryBtn,.secondaryBtn,.iconButton,.navItem,.providerConfigure,.savedScriptRow,.searchBtn,.creditBtn{
+  transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s ease,opacity .16s ease;
+}
+.primaryBtn:active,.secondaryBtn:active,.iconButton:active{transform:translateY(1px)}
+.panelCard,.providerCard,.notice,.hintCard{transition:border-color .16s ease,background-color .16s ease}
+.input,.sourceEditor,.outputEditor,.ownerKeyInput{transition:border-color .16s ease,box-shadow .16s ease}
+.input:focus,.sourceEditor:focus,.outputEditor:focus,.ownerKeyInput:focus-within{box-shadow:0 0 0 3px rgba(34,211,238,.055)}
+.routeForm{display:grid;grid-template-columns:1fr 150px 1fr 1fr 90px auto;gap:10px;align-items:end;padding-top:16px}
+.routeForm label{display:block;color:#7f8d94;font-size:10px}
+.routeForm .input{margin-top:5px}
+.routeSave{height:36px}
+.routeList{display:grid}
+.routeRow{min-height:62px;display:grid;grid-template-columns:86px minmax(150px,1fr) 24px minmax(150px,1fr) 32px;gap:10px;align-items:center;border-bottom:1px solid var(--border);padding:9px 2px}
+.routeRow:last-child{border-bottom:0}
+.routeType{color:#70cbd7;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em}
+.routeValue strong,.routeValue small,.routeScript strong,.routeScript small{display:block}
+.routeValue strong,.routeScript strong{font-size:11px}
+.routeValue small,.routeScript small{margin-top:3px;color:#5c6a71;font-size:9px}
+.routeArrow{color:#45545b;text-align:center}
+.authNote{color:#69777e;font-size:11px}
+@media(max-width:980px){
+  .routeForm{grid-template-columns:1fr 1fr}
+  .routeSave{align-self:end}
+}
+@media(max-width:680px){
+  .routeForm{grid-template-columns:1fr}
+  .routeRow{grid-template-columns:72px 1fr 28px}
+  .routeArrow{display:none}
+  .routeScript{grid-column:2}
+  .routeRow>.iconButton{grid-column:3;grid-row:1/3}
+}
