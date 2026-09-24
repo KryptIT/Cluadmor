@@ -210,3 +210,13 @@ button:disabled{cursor:not-allowed;opacity:.48}
   .telemetryEvent{grid-template-columns:30px 1fr}
   .telemetryEvent time{grid-column:2}
 }
+
+.settingsPanelGap{margin-top:14px}
+.accountSettingsRow{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.accountIdentity{display:flex;align-items:center;gap:11px;min-width:0}
+.accountIdentity img,.accountAvatarFallback{width:38px;height:38px;flex:0 0 38px;border-radius:50%;border:1px solid var(--border);object-fit:cover;background:#090e11}
+.accountAvatarFallback{display:grid;place-items:center;color:#64747b}
+.accountIdentity strong,.accountIdentity small{display:block}
+.accountIdentity strong{max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.accountIdentity small{margin-top:4px;color:#5f6d74;font-size:9px}
+@media(max-width:640px){.accountSettingsRow{align-items:stretch;flex-direction:column}}
