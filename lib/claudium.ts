@@ -2,12 +2,23 @@ export type ClaudiumResult =
   | { ok: true; output: string; raw: string }
   | { ok: false; status: number; error: string; detail?: string };
 
-function endpoint() {
+function rawBaseUrl() {
   const raw = (process.env.CLAUDIUM_INTERNAL_URL || "").trim();
   if (!raw) return null;
 
   try {
-    const url = new URL(raw);
+    return new URL(raw);
+  } catch {
+    return null;
+  }
+}
+
+function endpoint() {
+  const base = rawBaseUrl();
+  if (!base) return null;
+
+  try {
+    const url = new URL(base.toString());
     const path = url.pathname.replace(/\/+$/, "");
     if (!path || path === "") url.pathname = "/obfuscate";
     else if (path !== "/obfuscate") url.pathname = path + "/obfuscate";
@@ -19,6 +30,48 @@ function endpoint() {
 
 export function claudiumConfigured() {
   return !!endpoint() && !!(process.env.CLAUDIUM_INTERNAL_SECRET || "").trim();
+}
+
+export async function claudiumHealth() {
+  const base = rawBaseUrl();
+  const configured = claudiumConfigured();
+
+  if (!base || !configured) {
+    return {
+      configured,
+      online: false,
+      status: 0,
+      detail: "Claudium URL/secret is not configured."
+    };
+  }
+
+  const health = new URL(base.toString());
+  health.pathname = "/health";
+  health.search = "";
+
+  try {
+    const response = await fetch(health, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000)
+    });
+
+    const text = await response.text();
+
+    return {
+      configured: true,
+      online: response.ok,
+      status: response.status,
+      detail: response.ok ? "online" : text.slice(0, 300)
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      online: false,
+      status: 0,
+      detail: error instanceof Error ? error.message : "Could not reach Claudium."
+    };
+  }
 }
 
 export async function runClaudium(source: string, preset = "executor"): Promise<ClaudiumResult> {
