@@ -12,7 +12,8 @@ import {
   Search,
   Coins,
   ExternalLink,
-  Settings
+  Settings,
+  Route
 } from "lucide-react";
 
 const groups = [
@@ -30,6 +31,7 @@ const groups = [
       { label: "Providers", href: "/dashboard/providers", icon: PlugZap },
       { label: "Keys", href: "/dashboard/keys", icon: KeyRound },
       { label: "Lua scripts", href: "/dashboard/scripts", icon: Code2 },
+      { label: "Loader routes", href: "/dashboard/routes", icon: Route },
       { label: "Public pages", href: "/dashboard/public", icon: Globe2 }
     ]
   },
