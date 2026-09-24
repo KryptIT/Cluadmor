@@ -22,10 +22,15 @@ export async function GET(req: Request) {
 
   const rows = await sql`
     SELECT r.id, r.service_id, r.script_id, r.match_type, r.match_value,
-           r.priority, r.enabled, ss.name AS script_name
+           r.priority, r.enabled,
+           ss.name AS script_name,
+           ts.id AS target_service_id,
+           ts.name AS target_service_name
     FROM script_routes r
     JOIN service_scripts ss ON ss.id = r.script_id
+    JOIN services ts ON ts.id = ss.service_id
     WHERE r.service_id = ${serviceId}
+      AND ts.owner_id = ${identity.userId}
     ORDER BY
       CASE r.match_type WHEN 'PLACE' THEN 0 WHEN 'UNIVERSE' THEN 1 ELSE 2 END,
       r.priority DESC,
@@ -42,6 +47,7 @@ export async function POST(req: Request) {
 
   let body: {
     serviceId?: string;
+    targetServiceId?: string;
     scriptId?: string;
     matchType?: "PLACE" | "UNIVERSE" | "DEFAULT";
     matchValue?: string;
@@ -55,6 +61,7 @@ export async function POST(req: Request) {
     return noStoreJson({ ok: false, error: "missing_fields" }, 400);
   }
 
+  const targetServiceId = body.targetServiceId || body.serviceId;
   const matchType = body.matchType;
   const matchValue = matchType === "DEFAULT" ? "" : String(body.matchValue || "").trim();
 
@@ -66,15 +73,21 @@ export async function POST(req: Request) {
   }
 
   const valid = await sql`
-    SELECT s.id
-    FROM services s
-    JOIN service_scripts ss ON ss.service_id = s.id
-    WHERE s.id = ${body.serviceId}
-      AND s.owner_id = ${identity.userId}
+    SELECT source.id
+    FROM services source
+    JOIN services target ON target.id = ${targetServiceId}
+    JOIN service_scripts ss ON ss.service_id = target.id
+    WHERE source.id = ${body.serviceId}
+      AND source.owner_id = ${identity.userId}
+      AND target.owner_id = ${identity.userId}
+      AND target.enabled = true
       AND ss.id = ${body.scriptId}
     LIMIT 1
   `;
-  if (!valid[0]) return noStoreJson({ ok: false, error: "service_or_script_not_owned" }, 403);
+
+  if (!valid[0]) {
+    return noStoreJson({ ok: false, error: "service_or_script_not_owned" }, 403);
+  }
 
   const rows = await sql`
     INSERT INTO script_routes(service_id, script_id, match_type, match_value, priority)

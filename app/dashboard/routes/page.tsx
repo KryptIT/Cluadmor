@@ -11,6 +11,8 @@ type LoaderRoute = {
   service_id: string;
   script_id: string;
   script_name: string;
+  target_service_id: string;
+  target_service_name: string;
   match_type: "PLACE" | "UNIVERSE" | "DEFAULT";
   match_value: string;
   priority: number;
@@ -23,6 +25,7 @@ export default function LoaderRoutesPage() {
   const [scripts, setScripts] = useState<Script[]>([]);
   const [routes, setRoutes] = useState<LoaderRoute[]>([]);
   const [serviceId, setServiceId] = useState("");
+  const [targetServiceId, setTargetServiceId] = useState("");
   const [scriptId, setScriptId] = useState("");
   const [matchType, setMatchType] = useState<"PLACE" | "UNIVERSE" | "DEFAULT">("PLACE");
   const [matchValue, setMatchValue] = useState("");
@@ -30,9 +33,9 @@ export default function LoaderRoutesPage() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
 
-  const serviceScripts = useMemo(
-    () => scripts.filter(script => script.service_id === serviceId),
-    [scripts, serviceId]
+  const targetScripts = useMemo(
+    () => scripts.filter(script => script.service_id === targetServiceId),
+    [scripts, targetServiceId]
   );
 
   async function loadBase() {
@@ -41,6 +44,7 @@ export default function LoaderRoutesPage() {
       setAuthenticated(false);
       return;
     }
+
     const sd = await s.json();
     const serviceList = sd.services || [];
     setAuthenticated(true);
@@ -52,7 +56,10 @@ export default function LoaderRoutesPage() {
       setScripts(scriptsData.scripts || []);
     }
 
-    if (!serviceId && serviceList[0]) setServiceId(serviceList[0].id);
+    if (!serviceId && serviceList[0]) {
+      setServiceId(serviceList[0].id);
+      setTargetServiceId(serviceList[0].id);
+    }
   }
 
   async function loadRoutes(id = serviceId) {
@@ -60,6 +67,7 @@ export default function LoaderRoutesPage() {
       setRoutes([]);
       return;
     }
+
     const res = await fetch("/api/workspace/routes?serviceId=" + encodeURIComponent(id), { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
@@ -68,34 +76,44 @@ export default function LoaderRoutesPage() {
   }
 
   useEffect(() => { loadBase(); }, []);
+
   useEffect(() => {
     if (serviceId) {
-      setScriptId("");
       loadRoutes(serviceId);
+      setMessage("");
     }
   }, [serviceId]);
 
+  useEffect(() => {
+    setScriptId("");
+  }, [targetServiceId]);
+
   async function saveRoute() {
-    if (!serviceId || !scriptId) return;
+    if (!serviceId || !targetServiceId || !scriptId) return;
+
     setBusy("save");
     setMessage("");
+
     try {
       const res = await fetch("/api/workspace/routes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceId,
+          targetServiceId,
           scriptId,
           matchType,
           matchValue: matchType === "DEFAULT" ? "" : matchValue,
           priority: Number(priority) || 0
         })
       });
+
       const data = await res.json();
       if (!res.ok) {
         setMessage(data.error || "Could not save route.");
         return;
       }
+
       setMatchValue("");
       await loadRoutes();
     } finally {
@@ -123,7 +141,7 @@ export default function LoaderRoutesPage() {
         <div>
           <span className="muted">Loader</span>
           <h1>Place & universe routing</h1>
-          <p>Choose which script a service returns for each Roblox PlaceId or UniverseId.</p>
+          <p>One loader service can route different Roblox games to protected scripts from any of your services.</p>
         </div>
       </div>
 
@@ -148,9 +166,9 @@ export default function LoaderRoutesPage() {
 
         <div className="routeForm">
           <label>
-            Service
+            Loader service
             <select className="input" value={serviceId} onChange={e => setServiceId(e.target.value)}>
-              <option value="">Select service...</option>
+              <option value="">Select loader service...</option>
               {services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}
             </select>
           </label>
@@ -176,10 +194,18 @@ export default function LoaderRoutesPage() {
           </label>
 
           <label>
-            Script
+            Target service
+            <select className="input" value={targetServiceId} onChange={e => setTargetServiceId(e.target.value)}>
+              <option value="">Select target service...</option>
+              {services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}
+            </select>
+          </label>
+
+          <label>
+            Target script
             <select className="input" value={scriptId} onChange={e => setScriptId(e.target.value)}>
               <option value="">Select script...</option>
-              {serviceScripts.map(script => <option key={script.id} value={script.id}>{script.name}</option>)}
+              {targetScripts.map(script => <option key={script.id} value={script.id}>{script.name}</option>)}
             </select>
           </label>
 
@@ -193,6 +219,7 @@ export default function LoaderRoutesPage() {
             disabled={
               busy !== "" ||
               !serviceId ||
+              !targetServiceId ||
               !scriptId ||
               (matchType !== "DEFAULT" && !matchValue)
             }
@@ -216,7 +243,7 @@ export default function LoaderRoutesPage() {
           <div className="emptyState">
             <div className="emptyIcon"><Route size={18}/></div>
             <strong>No routes configured</strong>
-            <p>Add a PlaceId, UniverseId, or default route for this service.</p>
+            <p>Add a PlaceId, UniverseId, or default route for this loader service.</p>
           </div>
         ) : (
           <div className="routeList">
@@ -228,7 +255,10 @@ export default function LoaderRoutesPage() {
                   <small>{route.match_type === "PLACE" ? "game.PlaceId" : route.match_type === "UNIVERSE" ? "game.GameId" : "when nothing else matches"}</small>
                 </div>
                 <div className="routeArrow">→</div>
-                <div className="routeScript"><strong>{route.script_name}</strong><small>priority {route.priority}</small></div>
+                <div className="routeScript">
+                  <strong>{route.target_service_name} / {route.script_name}</strong>
+                  <small>target service · priority {route.priority}</small>
+                </div>
                 <button className="iconButton" disabled={busy === route.id} onClick={() => removeRoute(route.id)}>
                   {busy === route.id ? <RefreshCw size={13} className="spin"/> : <Trash2 size={14}/>}
                 </button>
@@ -239,8 +269,8 @@ export default function LoaderRoutesPage() {
       </section>
 
       <div className="hintCard">
-        <strong>Runtime resolution</strong>
-        <p>The authenticated loader sends <code>game.PlaceId</code> and <code>game.GameId</code>. Claudmor checks PlaceId first, then UniverseId, then the default route.</p>
+        <strong>How cross-service routing works</strong>
+        <p>The key and HWID are validated against the loader service. After that, Claudmor can deliver a protected script from another service you own. PlaceId is checked first, then UniverseId, then the default route.</p>
       </div>
     </>
   );

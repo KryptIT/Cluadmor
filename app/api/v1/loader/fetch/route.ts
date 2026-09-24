@@ -88,11 +88,17 @@ export async function POST(req: Request) {
   const rows = await sql`
     SELECT r.match_type, r.match_value,
            ss.id AS script_id, ss.name AS script_name,
-           ss.obfuscated_ciphertext
+           ss.obfuscated_ciphertext,
+           target.id AS target_service_id,
+           target.name AS target_service_name
     FROM script_routes r
+    JOIN services source ON source.id = r.service_id
     JOIN service_scripts ss ON ss.id = r.script_id
+    JOIN services target ON target.id = ss.service_id
     WHERE r.service_id = ${ticket.service_id}
       AND r.enabled = true
+      AND target.enabled = true
+      AND target.owner_id = source.owner_id
       AND (
         (r.match_type = 'PLACE' AND r.match_value = ${placeId})
         OR
@@ -178,6 +184,8 @@ export async function POST(req: Request) {
     source,
     scriptName: row.script_name,
     scriptId: row.script_id,
+    targetServiceId: row.target_service_id,
+    targetServiceName: row.target_service_name,
     protected: true,
     matched: {
       type: row.match_type,
