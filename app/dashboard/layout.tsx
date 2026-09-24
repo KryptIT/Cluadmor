@@ -79,7 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="sidebarBottom">
           <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">
-            Community <ExternalLink size={13} />
+            Discord updates <ExternalLink size={13} />
           </a>
           <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">
             larpcorrupted <ExternalLink size={13} />
