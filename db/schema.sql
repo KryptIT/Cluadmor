@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS service_scripts (
 CREATE TABLE IF NOT EXISTS script_routes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
-  script_id uuid NOT NULL REFERENCES service_scripts(id) ON DELETE CASCADE,
+  script_id uuid REFERENCES service_scripts(id) ON DELETE CASCADE,
+  target_service_id uuid REFERENCES services(id) ON DELETE CASCADE,
   match_type text NOT NULL CHECK (match_type IN ('PLACE','UNIVERSE','DEFAULT')),
   match_value text NOT NULL DEFAULT '',
   priority integer NOT NULL DEFAULT 0,

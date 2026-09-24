@@ -22,8 +22,66 @@ if __cm.__CLAUDMOR_DELIVERY ~= "${token}" then error("[Claudmor] invalid deliver
 ${routeCheck}`;
 }
 
+async function findRoute(
+  serviceId: string,
+  ownerId: string,
+  placeId: string,
+  universeId: string
+) {
+  const rows = await sql`
+    SELECT
+      r.match_type,
+      r.match_value,
+      r.script_id,
+      r.target_service_id,
+      ss.name AS script_name,
+      ss.obfuscated_ciphertext,
+      script_service.id AS script_service_id,
+      script_service.name AS script_service_name,
+      target.name AS target_service_name
+    FROM script_routes r
+    LEFT JOIN service_scripts ss ON ss.id = r.script_id
+    LEFT JOIN services script_service ON script_service.id = ss.service_id
+    LEFT JOIN services target ON target.id = r.target_service_id
+    WHERE r.service_id = ${serviceId}
+      AND r.enabled = true
+      AND (
+        (
+          r.script_id IS NOT NULL
+          AND script_service.owner_id = ${ownerId}
+          AND script_service.enabled = true
+        )
+        OR
+        (
+          r.target_service_id IS NOT NULL
+          AND target.owner_id = ${ownerId}
+          AND target.enabled = true
+        )
+      )
+      AND (
+        (r.match_type = 'PLACE' AND r.match_value = ${placeId})
+        OR
+        (r.match_type = 'UNIVERSE' AND r.match_value = ${universeId})
+        OR
+        (r.match_type = 'DEFAULT')
+      )
+    ORDER BY
+      CASE
+        WHEN r.match_type = 'PLACE' AND r.match_value = ${placeId} THEN 0
+        WHEN r.match_type = 'UNIVERSE' AND r.match_value = ${universeId} THEN 1
+        ELSE 2
+      END,
+      r.priority DESC,
+      r.created_at ASC
+    LIMIT 1
+  `;
+
+  return (rows[0] as any) || null;
+}
+
 export async function POST(req: Request) {
   await ensureWorkspaceSchema();
+
   let body: {
     ticket?: string;
     hwid?: string;
@@ -31,8 +89,11 @@ export async function POST(req: Request) {
     universeId?: string | number;
   };
 
-  try { body = await req.json(); }
-  catch { return noStoreJson({ ok: false, error: "invalid_json" }, 400); }
+  try {
+    body = await req.json();
+  } catch {
+    return noStoreJson({ ok: false, error: "invalid_json" }, 400);
+  }
 
   if (!body.ticket || !body.hwid) {
     return noStoreJson({ ok: false, error: "missing_fields" }, 400);
@@ -60,7 +121,7 @@ export async function POST(req: Request) {
   const ticket = consumed[0] as any;
 
   const access = await sql`
-    SELECT k.id
+    SELECT k.id, s.owner_id
     FROM license_keys k
     JOIN services s ON s.id = k.service_id
     WHERE k.id = ${ticket.key_id}
@@ -82,42 +143,64 @@ export async function POST(req: Request) {
       universeId,
       reason: "license_inactive"
     });
+
     return noStoreJson({ ok: false, error: "license_inactive" }, 403);
   }
 
-  const rows = await sql`
-    SELECT r.match_type, r.match_value,
-           ss.id AS script_id, ss.name AS script_name,
-           ss.obfuscated_ciphertext,
-           target.id AS target_service_id,
-           target.name AS target_service_name
-    FROM script_routes r
-    JOIN services source ON source.id = r.service_id
-    JOIN service_scripts ss ON ss.id = r.script_id
-    JOIN services target ON target.id = ss.service_id
-    WHERE r.service_id = ${ticket.service_id}
-      AND r.enabled = true
-      AND target.enabled = true
-      AND target.owner_id = source.owner_id
-      AND (
-        (r.match_type = 'PLACE' AND r.match_value = ${placeId})
-        OR
-        (r.match_type = 'UNIVERSE' AND r.match_value = ${universeId})
-        OR
-        (r.match_type = 'DEFAULT')
-      )
-    ORDER BY
-      CASE
-        WHEN r.match_type = 'PLACE' AND r.match_value = ${placeId} THEN 0
-        WHEN r.match_type = 'UNIVERSE' AND r.match_value = ${universeId} THEN 1
-        ELSE 2
-      END,
-      r.priority DESC,
-      r.created_at ASC
-    LIMIT 1
-  `;
+  const ownerId = String((access[0] as any).owner_id);
+  let currentServiceId = String(ticket.service_id);
+  let resolved: any = null;
+  let firstMatch: { type: string; value: string } | null = null;
+  const visited = new Set<string>();
 
-  if (!rows[0]) {
+  for (let depth = 0; depth < 8; depth++) {
+    if (visited.has(currentServiceId)) {
+      await recordTelemetry({
+        serviceId: ticket.service_id,
+        keyId: ticket.key_id,
+        eventType: "ROUTE_MISS",
+        hwidHash,
+        ipHash: digest(clientIp(req.headers)),
+        placeId,
+        universeId,
+        reason: "route_cycle"
+      });
+
+      return noStoreJson({ ok: false, error: "route_cycle" }, 409);
+    }
+
+    visited.add(currentServiceId);
+
+    const route = await findRoute(
+      currentServiceId,
+      ownerId,
+      placeId,
+      universeId
+    );
+
+    if (!route) break;
+
+    if (!firstMatch) {
+      firstMatch = {
+        type: String(route.match_type),
+        value: String(route.match_value || "")
+      };
+    }
+
+    if (route.script_id) {
+      resolved = route;
+      break;
+    }
+
+    if (route.target_service_id) {
+      currentServiceId = String(route.target_service_id);
+      continue;
+    }
+
+    break;
+  }
+
+  if (!resolved) {
     await recordTelemetry({
       serviceId: ticket.service_id,
       keyId: ticket.key_id,
@@ -128,19 +211,19 @@ export async function POST(req: Request) {
       universeId,
       reason: "no_script_route"
     });
+
     return noStoreJson({ ok: false, error: "no_script_route" }, 404);
   }
 
-  const row = rows[0] as any;
-  if (!row.obfuscated_ciphertext) {
+  if (!resolved.obfuscated_ciphertext) {
     return noStoreJson({
       ok: false,
       error: "script_not_built",
-      detail: "The routed script has not been obfuscated yet."
+      detail: "The resolved target script has not been obfuscated yet."
     }, 409);
   }
 
-  const decoded = decryptConfig(row.obfuscated_ciphertext) as { source?: string };
+  const decoded = decryptConfig(resolved.obfuscated_ciphertext) as { source?: string };
   const payload = String(decoded.source || "");
 
   if (!payload) {
@@ -148,11 +231,13 @@ export async function POST(req: Request) {
   }
 
   const deliveryToken = opaque("CMD", 18);
-  const source = deliveryGuard(
-    deliveryToken,
-    String(row.match_type),
-    String(row.match_value || "")
-  ) + payload;
+  const guardMatch = firstMatch || {
+    type: String(resolved.match_type),
+    value: String(resolved.match_value || "")
+  };
+
+  const source =
+    deliveryGuard(deliveryToken, guardMatch.type, guardMatch.value) + payload;
 
   const ipHash = digest(clientIp(req.headers));
 
@@ -169,27 +254,24 @@ export async function POST(req: Request) {
   await recordTelemetry({
     serviceId: ticket.service_id,
     keyId: ticket.key_id,
-    scriptId: row.script_id,
+    scriptId: resolved.script_id,
     eventType: "SCRIPT_DELIVERY",
     hwidHash,
     ipHash,
     placeId,
     universeId,
-    routeType: String(row.match_type)
+    routeType: guardMatch.type
   });
 
   return noStoreJson({
     ok: true,
     deliveryToken,
     source,
-    scriptName: row.script_name,
-    scriptId: row.script_id,
-    targetServiceId: row.target_service_id,
-    targetServiceName: row.target_service_name,
+    scriptName: resolved.script_name,
+    scriptId: resolved.script_id,
+    targetServiceId: resolved.script_service_id,
+    targetServiceName: resolved.script_service_name,
     protected: true,
-    matched: {
-      type: row.match_type,
-      value: row.match_value
-    }
+    matched: guardMatch
   });
 }
