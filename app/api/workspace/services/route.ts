@@ -79,7 +79,6 @@ export async function POST(req: Request) {
     return noStoreJson({
       ok: true,
       service: rows[0],
-      serviceSecret: secret,
       ownerBypass: identity.bypassRewards
     }, 201);
   } catch (error: any) {
