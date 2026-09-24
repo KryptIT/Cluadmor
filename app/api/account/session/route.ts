@@ -2,7 +2,7 @@ import { accountFromRequest, clearAccountCookie } from "@/lib/account";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { sql } from "@/lib/db";
 import { noStoreJson } from "@/lib/security";
-import { ownerFromRequest } from "@/lib/owner";
+import { clearOwnerCookie, ownerFromRequest } from "@/lib/owner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,5 +42,6 @@ export async function DELETE() {
   await ensureWorkspaceSchema();
   const response = noStoreJson({ ok: true });
   response.headers.append("Set-Cookie", clearAccountCookie());
+  response.headers.append("Set-Cookie", clearOwnerCookie());
   return response;
 }
