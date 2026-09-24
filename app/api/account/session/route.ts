@@ -15,8 +15,17 @@ export async function GET(req: Request) {
   if (!account) return noStoreJson({ ok: true, authenticated: false, ownerBypass: owner });
 
   const rows = await sql`
-    SELECT id, username, obfuscation_credits, service_creation_credits
-    FROM users WHERE id = ${account.userId} LIMIT 1
+    SELECT
+      id,
+      username,
+      display_name,
+      avatar_url,
+      email,
+      obfuscation_credits,
+      service_creation_credits
+    FROM users
+    WHERE id = ${account.userId}
+    LIMIT 1
   `;
 
   if (!rows[0]) return noStoreJson({ ok: true, authenticated: false, ownerBypass: owner });
