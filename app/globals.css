@@ -1,0 +1,21 @@
+:root {
+  color-scheme: dark;
+  background: #07090c;
+  color: #eef2f7;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #171b22 0, #090b0f 38%, #050608 100%); }
+.shell { width: min(1000px, calc(100% - 40px)); margin: 0 auto; padding: 96px 0; }
+.hero { max-width: 760px; }
+.eyebrow { letter-spacing: .26em; font-weight: 800; font-size: 12px; color: #9aa7b5; }
+h1 { margin: 18px 0 16px; font-size: clamp(46px, 9vw, 92px); line-height: .95; letter-spacing: -.055em; }
+.hero p { max-width: 670px; color: #aab4c0; font-size: 18px; line-height: 1.65; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.chips span { border: 1px solid #2a3039; background: #0d1116; padding: 9px 12px; border-radius: 999px; color: #cbd3dc; font-size: 13px; }
+.panel { margin-top: 72px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.panel > div { min-height: 190px; border: 1px solid #222831; background: rgba(11,14,18,.88); border-radius: 18px; padding: 24px; }
+.panel small { color: #778391; letter-spacing: .18em; font-weight: 700; }
+.panel strong { display: block; margin-top: 44px; font-size: 21px; }
+.panel p { color: #88939f; line-height: 1.55; margin-bottom: 0; }
+@media (max-width: 700px) { .shell { padding: 60px 0; } .panel { grid-template-columns: 1fr; } }
