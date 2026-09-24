@@ -123,6 +123,10 @@ export default function ServicesPage() {
         </button>
       </div>
 
+      {authenticated === null && message && (
+        <div className="formError pageError">{message}</div>
+      )}
+
       {authenticated === false && (
         <div className="notice ownerNotice">
           <div>
