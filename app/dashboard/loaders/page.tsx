@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   Copy,
-  FileKey2,
-  LoaderCircle,
+  FileText,
+  Loader2,
   LockKeyhole,
   RefreshCw,
   ShieldCheck
@@ -108,7 +108,7 @@ export default function LoadersPage() {
 
       <section className="panelCard">
         <div className="panelTitle">
-          <div><span className="iconBox"><FileKey2 size={15}/></span><strong>Generate loader</strong></div>
+          <div><span className="iconBox"><FileText size={15}/></span><strong>Generate loader</strong></div>
           {protectedLoader && <span className="ownerBadge"><ShieldCheck size={13}/> protected</span>}
         </div>
 
@@ -138,7 +138,7 @@ export default function LoadersPage() {
               disabled={!serviceId || busy !== ""}
               onClick={() => generate(false)}
             >
-              {busy === "plain" ? <RefreshCw size={14} className="spin"/> : <LoaderCircle size={14}/>}
+              {busy === "plain" ? <RefreshCw size={14} className="spin"/> : <Loader2 size={14}/>}
               Readable loader
             </button>
           </div>
