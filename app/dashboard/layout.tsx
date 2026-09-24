@@ -10,7 +10,8 @@ import {
   Key,
   Search,
   Coins,
-  ExternalLink
+  ExternalLink,
+  Settings
 } from "lucide-react";
 
 const groups = [
@@ -18,7 +19,8 @@ const groups = [
     label: "Workspace",
     items: [
       { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Services", href: "/dashboard/services", icon: Boxes }
+      { label: "Services", href: "/dashboard/services", icon: Boxes },
+      { label: "Settings", href: "/dashboard/settings", icon: Settings }
     ]
   },
   {
