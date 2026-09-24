@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Boxes, Check, Copy, KeyRound, Plus, RefreshCw, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Boxes, Check, KeyRound, Plus, RefreshCw, ShieldCheck, Sparkles, X } from "lucide-react";
 
 type Service = {
   id: string;
@@ -28,7 +28,6 @@ export default function ServicesPage() {
     robloxUsername: false,
     discordUserId: false
   });
-  const [issuedSecret, setIssuedSecret] = useState("");
   const [message, setMessage] = useState("");
 
   async function loadServices() {
@@ -39,6 +38,12 @@ export default function ServicesPage() {
       return;
     }
     const data = await res.json();
+    if (!res.ok) {
+      setAuthenticated(res.status === 401 ? false : null);
+      setServices([]);
+      setMessage(data.detail || data.error || "Could not load services.");
+      return;
+    }
     setAuthenticated(true);
     setOwnerBypass(!!data.ownerBypass);
     setServices(data.services || []);
@@ -75,7 +80,6 @@ export default function ServicesPage() {
     if (!name.trim()) return;
     setBusy("create");
     setMessage("");
-    setIssuedSecret("");
     try {
       const res = await fetch("/api/workspace/services", {
         method: "POST",
@@ -97,7 +101,6 @@ export default function ServicesPage() {
         setMessage(data.detail || data.error || "Could not create service.");
         return;
       }
-      setIssuedSecret(data.serviceSecret || "");
       setName("");
       setCreating(false);
       await loadServices();
@@ -106,9 +109,6 @@ export default function ServicesPage() {
     }
   }
 
-  async function copySecret() {
-    if (issuedSecret) await navigator.clipboard.writeText(issuedSecret);
-  }
 
   return (
     <>
@@ -143,16 +143,6 @@ export default function ServicesPage() {
         </div>
       )}
 
-      {issuedSecret && (
-        <div className="secretNotice">
-          <div>
-            <strong>Service created. Save this secret now.</strong>
-            <code>{issuedSecret}</code>
-            <small>Only its hash is stored, so the exact secret is shown once.</small>
-          </div>
-          <button className="secondaryBtn" onClick={copySecret}><Copy size={14}/> Copy</button>
-        </div>
-      )}
 
       {creating && authenticated === true && (
         <section className="panelCard createPanel">
