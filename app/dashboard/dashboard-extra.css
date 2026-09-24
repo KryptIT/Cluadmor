@@ -75,3 +75,15 @@ button:disabled{cursor:not-allowed;opacity:.48}
   .routeScript{grid-column:2}
   .routeRow>.iconButton{grid-column:3;grid-row:1/3}
 }
+
+.providerServiceBar{display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:18px;align-items:end}
+.providerServiceBar .input{margin-top:5px}
+.providerCurrent{padding-bottom:2px}
+.providerCurrent strong,.providerCurrent small{display:block}
+.providerCurrent strong{font-size:12px}
+.providerCurrent small{margin-top:4px;color:#637178;font-size:10px}
+.providerGridSpaced{margin-top:14px}
+.providerFormAlways{display:grid;gap:10px;margin-top:14px}
+.providerEnableRow{display:flex!important;align-items:center;gap:8px;color:#7f8d94!important}
+.providerEnableRow input{accent-color:#55cddd}
+@media(max-width:720px){.providerServiceBar{grid-template-columns:1fr}}
