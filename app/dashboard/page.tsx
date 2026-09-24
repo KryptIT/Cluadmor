@@ -30,6 +30,8 @@ type Session = {
   ownerBypass: boolean;
   user?: {
     username: string;
+    display_name?: string | null;
+    avatar_url?: string | null;
     obfuscation_credits: number;
     service_creation_credits: number;
   };
@@ -72,7 +74,7 @@ export default function Dashboard() {
       <div className="pageHead">
         <div>
           <span className="muted">Workspace</span>
-          <h1>{signedIn ? session?.user?.username : "Overview"}</h1>
+          <h1>{signedIn ? (session?.user?.display_name || session?.user?.username) : "Overview"}</h1>
           <p>
             {signedIn
               ? "Your services, keys, scripts, and routing."
