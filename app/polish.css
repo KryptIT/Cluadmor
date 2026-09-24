@@ -138,3 +138,8 @@ a:active,button:active{transform:translateY(1px)}
 .discordButton .socialMark{color:#aebdff}
 .authSecurity{display:flex;align-items:flex-start;gap:9px;margin-top:18px;padding:12px;border-left:2px solid #37616a;background:#0a1215;color:#6f7f86;font-size:10px;line-height:1.5}
 .authSecurity svg{flex:0 0 auto;color:#78cbd5}
+
+.authCommunity{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;padding:10px 0;border-top:1px solid #1c262b;color:#627178;font-size:10px}
+.authCommunity a{display:inline-flex;align-items:center;gap:5px;color:#8fdde7}
+.authCommunity a:hover{color:#d5f7fb}
+@media(max-width:520px){.authCommunity{align-items:flex-start;flex-direction:column}}
