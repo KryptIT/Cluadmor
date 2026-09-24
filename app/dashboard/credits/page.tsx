@@ -28,7 +28,49 @@ export default function Credits() {
     setSession(await res.json());
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+
+    const rewardId = new URLSearchParams(window.location.search).get("reward");
+    if (!rewardId) return;
+
+    let stopped = false;
+
+    (async () => {
+      for (let attempt = 0; attempt < 12 && !stopped; attempt++) {
+        const res = await fetch(
+          "/api/rewards/status?id=" + encodeURIComponent(rewardId),
+          { cache: "no-store" }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          const status = data.reward?.status;
+
+          if (status === "COMPLETED") {
+            await refresh();
+            setMessage("Credit added to your account.");
+            window.history.replaceState({}, "", "/dashboard/credits");
+            return;
+          }
+
+          if (status === "EXPIRED") {
+            setMessage("That reward session expired.");
+            window.history.replaceState({}, "", "/dashboard/credits");
+            return;
+          }
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      if (!stopped) {
+        setMessage("Waiting for the LootLabs completion postback. Refresh in a moment if the credit has not appeared yet.");
+      }
+    })();
+
+    return () => { stopped = true; };
+  }, []);
 
   async function getCredit() {
     setBusy(true);
@@ -38,7 +80,10 @@ export default function Credits() {
       const res = await fetch("/api/rewards/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "OBFUSCATION" })
+        body: JSON.stringify({
+          type: "OBFUSCATION",
+          returnTo: "/dashboard/credits"
+        })
       });
 
       const data = await res.json();
