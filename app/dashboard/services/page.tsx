@@ -94,7 +94,7 @@ export default function ServicesPage() {
         return;
       }
       if (!res.ok) {
-        setMessage(data.error || "Could not create service.");
+        setMessage(data.detail || data.error || "Could not create service.");
         return;
       }
       setIssuedSecret(data.serviceSecret || "");
