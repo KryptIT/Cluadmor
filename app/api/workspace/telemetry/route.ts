@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { noStoreJson } from "@/lib/security";
 import { workspaceIdentity } from "@/lib/workspace";
 
@@ -105,6 +106,7 @@ async function timelineDays(serviceId: string, days: 7 | 30) {
 }
 
 export async function GET(req: Request) {
+  await ensureWorkspaceSchema();
   const identity = await workspaceIdentity(req);
   if (!identity) return noStoreJson({ ok: false, error: "login_required" }, 401);
 
