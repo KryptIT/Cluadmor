@@ -62,6 +62,8 @@ type OAuthIdentity = {
 export async function resolveOAuthUser(identity: OAuthIdentity) {
   await ensureWorkspaceSchema();
 
+  const verified = identity.emailVerified === true;
+
   const existing = await sql`
     SELECT user_id
     FROM oauth_accounts
@@ -72,7 +74,7 @@ export async function resolveOAuthUser(identity: OAuthIdentity) {
 
   let userId = existing[0] ? String((existing[0] as any).user_id) : "";
 
-  if (!userId && identity.email && identity.emailVerified) {
+  if (!userId && identity.email && verified) {
     const byEmail = await sql`
       SELECT id
       FROM users
@@ -94,7 +96,7 @@ export async function resolveOAuthUser(identity: OAuthIdentity) {
       )
       VALUES (
         ${generatedUsername},
-        ${identity.emailVerified ? identity.email || null : null},
+        ${verified ? identity.email || null : null},
         ${identity.displayName || null},
         ${identity.avatarUrl || null}
       )
@@ -138,7 +140,7 @@ export async function resolveOAuthUser(identity: OAuthIdentity) {
       display_name = COALESCE(${identity.displayName || null}, display_name),
       avatar_url = COALESCE(${identity.avatarUrl || null}, avatar_url),
       email = CASE
-        WHEN email IS NULL AND ${identity.emailVerified} THEN ${identity.email || null}
+        WHEN email IS NULL AND ${verified} THEN ${identity.email || null}
         ELSE email
       END
     WHERE id = ${userId}
