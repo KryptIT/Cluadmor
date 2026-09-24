@@ -1,5 +1,5 @@
 import { runClaudium } from "@/lib/claudium";
-import { decryptConfig, encryptConfig } from "@/lib/config-crypto";
+import { encryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { buildLoader } from "@/lib/loader-template";
@@ -79,7 +79,7 @@ export async function POST(req: Request) {
 
   const origin = new URL(req.url).origin;
   const readableLoader = buildLoader(origin, body.serviceId);
-  const result = await runClaudium(readableLoader, "executor");
+  const result = await runClaudium(readableLoader, "executor", false);
 
   if (!result.ok) {
     return noStoreJson({
