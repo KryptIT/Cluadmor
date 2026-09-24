@@ -59,7 +59,7 @@ export async function POST(req: Request) {
   const rows = await sql`
     SELECT r.match_type, r.match_value,
            ss.id AS script_id, ss.name AS script_name,
-           ss.source_ciphertext, ss.published_ciphertext
+           ss.source_ciphertext
     FROM script_routes r
     JOIN service_scripts ss ON ss.id = r.script_id
     WHERE r.service_id = ${ticket.service_id}
@@ -87,8 +87,7 @@ export async function POST(req: Request) {
   }
 
   const row = rows[0] as any;
-  const encrypted = row.published_ciphertext || row.source_ciphertext;
-  const decoded = decryptConfig(encrypted) as { source?: string };
+  const decoded = decryptConfig(row.source_ciphertext) as { source?: string };
   const payload = String(decoded.source || "");
 
   if (!payload) {
@@ -113,7 +112,7 @@ export async function POST(req: Request) {
     source,
     scriptName: row.script_name,
     scriptId: row.script_id,
-    protected: !!row.published_ciphertext,
+    protected: false,
     matched: {
       type: row.match_type,
       value: row.match_value
