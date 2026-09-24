@@ -31,9 +31,9 @@ const groups = [
     items: [
       { label: "Providers", href: "/dashboard/providers", icon: PlugZap },
       { label: "Keys", href: "/dashboard/keys", icon: KeyRound },
-      { label: "Lua scripts", href: "/dashboard/scripts", icon: Code2 },
+      { label: "Scripts", href: "/dashboard/scripts", icon: Code2 },
       { label: "Loader routes", href: "/dashboard/routes", icon: Route },
-      { label: "Loaders", href: "/dashboard/loaders", icon: FileText },
+      { label: "Loader", href: "/dashboard/loaders", icon: FileText },
       { label: "Public pages", href: "/dashboard/public", icon: Globe2 }
     ]
   },
