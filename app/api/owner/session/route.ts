@@ -1,4 +1,5 @@
 import { clearOwnerCookie, issueOwnerToken, ownerCookie, ownerFromRequest, ownerKeyConfigured, verifyOwnerKey } from "@/lib/owner";
+import { accountFromRequest } from "@/lib/account";
 import { noStoreJson } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -21,12 +22,17 @@ export async function POST(req: Request) {
     return noStoreJson({ ok: false, error: "owner_key_not_configured" }, 503);
   }
 
+  const account = accountFromRequest(req);
+  if (!account) {
+    return noStoreJson({ ok: false, error: "login_required" }, 401);
+  }
+
   if (!body.ownerKey || !verifyOwnerKey(body.ownerKey)) {
     return noStoreJson({ ok: false, error: "invalid_owner_key" }, 401);
   }
 
   const response = noStoreJson({ ok: true, owner: true });
-  response.headers.append("Set-Cookie", ownerCookie(issueOwnerToken()));
+  response.headers.append("Set-Cookie", ownerCookie(issueOwnerToken(account.userId)));
   return response;
 }
 
