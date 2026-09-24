@@ -1,4 +1,5 @@
 import { encryptConfig } from "@/lib/config-crypto";
+import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { sql } from "@/lib/db";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { noStoreJson } from "@/lib/security";
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  await ensureWorkspaceSchema();
   const identity = await workspaceIdentity(req);
   if (!identity) return noStoreJson({ ok: false, error: "login_required" }, 401);
 
@@ -34,6 +36,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  await ensureWorkspaceSchema();
   const identity = await workspaceIdentity(req);
   if (!identity) return noStoreJson({ ok: false, error: "login_required" }, 401);
 
