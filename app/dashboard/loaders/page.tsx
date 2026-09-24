@@ -241,7 +241,7 @@ export default function LoadersPage() {
 
       <section className="hintCard">
         <strong>The loader URL is public by design</strong>
-        <p>It contains no service-management secret and no original source. A valid SCRIPT_KEY and server-approved HWID/account session are still required before Claudmor returns a routed protected script.</p>
+        <p>The public URL returns only a small bootstrap. The actual obfuscated loader is POST-only and requires Claudmor executor headers plus a valid SCRIPT_KEY, HWID, and configured account bindings. The headers are only an extra filter; key/HWID validation is the real gate.</p>
       </section>
     </>
   );
