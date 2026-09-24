@@ -1,11 +1,15 @@
-import { clearOwnerCookie, issueOwnerToken, ownerCookie, ownerFromRequest, verifyOwnerKey } from "@/lib/owner";
+import { clearOwnerCookie, issueOwnerToken, ownerCookie, ownerFromRequest, ownerKeyConfigured, verifyOwnerKey } from "@/lib/owner";
 import { noStoreJson } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  return noStoreJson({ ok: true, owner: ownerFromRequest(req) });
+  return noStoreJson({
+    ok: true,
+    owner: ownerFromRequest(req),
+    configured: ownerKeyConfigured()
+  });
 }
 
 export async function POST(req: Request) {
@@ -13,7 +17,7 @@ export async function POST(req: Request) {
   try { body = await req.json(); }
   catch { return noStoreJson({ ok: false, error: "invalid_json" }, 400); }
 
-  if (!process.env.CLAUDMOR_OWNER_KEY) {
+  if (!ownerKeyConfigured()) {
     return noStoreJson({ ok: false, error: "owner_key_not_configured" }, 503);
   }
 
