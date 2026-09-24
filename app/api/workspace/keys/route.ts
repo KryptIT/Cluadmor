@@ -1,4 +1,5 @@
 import { sql } from "@/lib/db";
+import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { digest, noStoreJson, opaque } from "@/lib/security";
 import { workspaceIdentity } from "@/lib/workspace";
 
@@ -6,6 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  await ensureWorkspaceSchema();
   const identity = await workspaceIdentity(req);
   if (!identity) return noStoreJson({ ok: false, error: "login_required" }, 401);
 
@@ -36,6 +38,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  await ensureWorkspaceSchema();
   const identity = await workspaceIdentity(req);
   if (!identity) return noStoreJson({ ok: false, error: "login_required" }, 401);
 
