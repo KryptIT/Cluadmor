@@ -37,3 +37,5 @@ Use random values of at least 32 bytes for all Claudmor secrets.
 - `POST /api/admin/keys`
 
 The admin routes are intended only for initial development. The dashboard/LootLabs workflow should replace direct admin usage for normal users.
+
+<!-- redeploy trigger -->
