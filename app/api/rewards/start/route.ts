@@ -1,75 +1,183 @@
 import { sql } from "@/lib/db";
+import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { noStoreJson } from "@/lib/security";
 import { workspaceIdentity } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function withPuid(base: string, sessionId: string) {
+  const join = base.includes("?") ? "&" : "?";
+  return base + join + "puid=" + encodeURIComponent(sessionId);
+}
+
+async function expireSession(id: string) {
+  try {
+    await sql`
+      UPDATE reward_sessions
+      SET status = 'EXPIRED'
+      WHERE id = ${id}
+    `;
+  } catch {}
+}
+
 export async function POST(req: Request) {
+  await ensureWorkspaceSchema();
+
   const identity = await workspaceIdentity(req);
-  if (!identity) return noStoreJson({ ok: false, error: "login_required" }, 401);
+  if (!identity) {
+    return noStoreJson({ ok: false, error: "login_required" }, 401);
+  }
 
   if (identity.bypassRewards) {
     return noStoreJson({ ok: true, bypass: true });
   }
 
   let body: { type?: "SERVICE_CREATION" | "OBFUSCATION" };
-  try { body = await req.json(); }
-  catch { return noStoreJson({ ok: false, error: "invalid_json" }, 400); }
+
+  try {
+    body = await req.json();
+  } catch {
+    return noStoreJson({ ok: false, error: "invalid_json" }, 400);
+  }
 
   if (!body.type || !["SERVICE_CREATION", "OBFUSCATION"].includes(body.type)) {
     return noStoreJson({ ok: false, error: "invalid_reward_type" }, 400);
   }
 
-  const token = process.env.LOOTLABS_API_TOKEN;
-  if (!token) return noStoreJson({ ok: false, error: "lootlabs_not_configured" }, 503);
-
   const sessions = await sql`
     INSERT INTO reward_sessions(user_id, reward_type, expires_at)
-    VALUES (${identity.userId}, ${body.type}, now() + interval '20 minutes')
+    VALUES (
+      ${identity.userId},
+      ${body.type},
+      now() + interval '30 minutes'
+    )
     RETURNING id, reward_type, expires_at
   `;
+
   const session = sessions[0] as any;
+  const sessionId = String(session.id);
 
-  const origin = new URL(req.url).origin;
-  const destination = body.type === "SERVICE_CREATION"
-    ? `${origin}/dashboard/services?reward=${session.id}`
-    : `${origin}/dashboard/scripts?reward=${session.id}`;
+  /*
+   * Preferred mode:
+   * Create one LootLabs link in the LootLabs dashboard and put the resulting
+   * loot-link.com URL in LOOTLABS_REWARD_URL. Claudmor only appends ?puid=...
+   * for each reward session.
+   */
+  const configuredRewardUrl = (process.env.LOOTLABS_REWARD_URL || "").trim();
 
-  try {
-    const upstream = await fetch("https://creators.lootlabs.gg/api/public/content_locker", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        title: body.type === "SERVICE_CREATION" ? "Claudmor Service" : "Claudium Credit",
-        url: destination,
-        tier_id: 3,
-        number_of_tasks: 1,
-        theme: 1
-      }),
-      cache: "no-store"
-    });
-
-    const data = await upstream.json() as any;
-    const base = data?.message?.loot_url;
-
-    if (!upstream.ok || !base) {
-      await sql`UPDATE reward_sessions SET status = 'EXPIRED' WHERE id = ${session.id}`;
-      return noStoreJson({ ok: false, error: "lootlabs_link_failed" }, 502);
+  if (configuredRewardUrl) {
+    if (!/^https:\/\//i.test(configuredRewardUrl)) {
+      await expireSession(sessionId);
+      return noStoreJson({
+        ok: false,
+        error: "lootlabs_reward_url_invalid",
+        detail: "LOOTLABS_REWARD_URL must be a full https:// LootLabs link."
+      }, 503);
     }
 
-    const join = String(base).includes("?") ? "&" : "?";
     return noStoreJson({
       ok: true,
-      rewardSessionId: session.id,
-      url: String(base) + join + "puid=" + encodeURIComponent(String(session.id)),
-      expiresAt: session.expires_at
+      rewardSessionId: sessionId,
+      url: withPuid(configuredRewardUrl, sessionId),
+      expiresAt: session.expires_at,
+      mode: "configured_link"
     });
-  } catch {
-    await sql`UPDATE reward_sessions SET status = 'EXPIRED' WHERE id = ${session.id}`;
-    return noStoreJson({ ok: false, error: "lootlabs_unavailable" }, 502);
+  }
+
+  /*
+   * Fallback mode:
+   * Dynamically create a link through LootLabs' public content_locker API.
+   */
+  const token = (process.env.LOOTLABS_API_TOKEN || "").trim();
+
+  if (!token) {
+    await expireSession(sessionId);
+    return noStoreJson({
+      ok: false,
+      error: "lootlabs_not_configured",
+      detail: "Set LOOTLABS_REWARD_URL or LOOTLABS_API_TOKEN."
+    }, 503);
+  }
+
+  const origin = new URL(req.url).origin;
+  const destination =
+    body.type === "SERVICE_CREATION"
+      ? `${origin}/dashboard/services?reward=${sessionId}`
+      : `${origin}/dashboard/scripts?reward=${sessionId}`;
+
+  const requestBody = {
+    title: body.type === "SERVICE_CREATION"
+      ? "Claudmor Service"
+      : "Claudium Credit",
+    url: destination,
+    tier_id: 3,
+    number_of_tasks: 1,
+    theme: 1
+  };
+
+  try {
+    const upstream = await fetch(
+      "https://creators.lootlabs.gg/api/public/content_locker",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(requestBody),
+        cache: "no-store",
+        signal: AbortSignal.timeout(12000)
+      }
+    );
+
+    const raw = await upstream.text();
+
+    let data: any = null;
+    try {
+      data = JSON.parse(raw);
+    } catch {}
+
+    const lootUrl =
+      typeof data?.message?.loot_url === "string"
+        ? data.message.loot_url
+        : "";
+
+    if (!upstream.ok || !lootUrl) {
+      await expireSession(sessionId);
+
+      const lootLabsMessage =
+        typeof data?.message === "string"
+          ? data.message
+          : typeof data?.error === "string"
+            ? data.error
+            : raw.slice(0, 500);
+
+      return noStoreJson({
+        ok: false,
+        error: "lootlabs_link_failed",
+        detail: lootLabsMessage || `LootLabs returned HTTP ${upstream.status}.`,
+        lootlabsStatus: upstream.status
+      }, 502);
+    }
+
+    return noStoreJson({
+      ok: true,
+      rewardSessionId: sessionId,
+      url: withPuid(lootUrl, sessionId),
+      expiresAt: session.expires_at,
+      mode: "api_created_link"
+    });
+  } catch (error) {
+    await expireSession(sessionId);
+
+    return noStoreJson({
+      ok: false,
+      error: "lootlabs_unavailable",
+      detail: error instanceof Error
+        ? error.message
+        : "Could not reach LootLabs."
+    }, 502);
   }
 }
