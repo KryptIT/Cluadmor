@@ -235,7 +235,7 @@ export default function SettingsPage() {
 
       <section className="hintCard">
         <strong>Owner variable</strong>
-        <p>Add <code>CLAUDMOR_OWNER_KEY</code> to Vercel Production and redeploy after changing it. Never prefix it with <code>NEXT_PUBLIC_</code>.</p>
+        <p><code>CLAUDMOR_OWNER_KEY</code> can be any non-empty value, including your existing 8-character key. Add it to Vercel Production exactly as the key itself, without extra quotes, then redeploy. Never prefix it with <code>NEXT_PUBLIC_</code>.</p>
       </section>
     </>
   );
