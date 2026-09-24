@@ -1,147 +1,180 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  Boxes,
+  CheckCircle2,
+  Code2,
+  Coins,
+  ExternalLink,
+  KeyRound,
+  Link2,
+  LockKeyhole,
+  MessageCircle,
+  PlugZap,
+  ServerCog,
+  ShieldCheck,
+  TerminalSquare,
+  Webhook
+} from "lucide-react";
 
 const steps = [
-  ["01 // Create", "Create a Service", "Create your Claudmor service and choose the account locks you want to require."],
-  ["02 // Providers", "Connect Providers", "Attach LootLabs, Linkvertise or Boostellar with your own provider credentials."],
-  ["03 // Keys", "Configure Key Rules", "Choose HWID, Roblox and Discord locks, expiration, resets and provider checkpoints."],
-  ["04 // Ship", "Get Your Lua", "Generate the small Claudmor client integration and keep the sensitive logic server-side."]
+  { n: "01", title: "Create a service", body: "Give one script or project its own isolated key system.", icon: Boxes },
+  { n: "02", title: "Connect providers", body: "Use your own LootLabs, Linkvertise, or Boostellar configuration.", icon: PlugZap },
+  { n: "03", title: "Set key rules", body: "Choose HWID, Roblox, Discord, expiry, and reset requirements.", icon: KeyRound },
+  { n: "04", title: "Ship the integration", body: "Generate a small client stub while sensitive logic stays server-side.", icon: Code2 }
 ];
 
 const features = [
-  ["◇", "HWID + Account Locks", "Bind keys to HWID, Roblox UserId, Roblox username and Discord UserId."],
-  ["⌁", "Provider Choice", "Use LootLabs, Linkvertise, Boostellar, or combine multiple provider checkpoints."],
-  ["⚿", "Key Management", "Issue, revoke, expire and reset keys from one dashboard."],
-  ["▦", "Multi-Service", "Run separate key systems for different scripts and projects from one account."],
-  ["↗", "Server-Side Bootstrap", "Private bootstrap logic stays off the public website and out of static assets."],
-  ["◆", "Claudium Credits", "Use Claudium obfuscation directly through the same dashboard and API."]
+  { title: "Identity locks", body: "HWID, Roblox UserId, Roblox username, and Discord UserId.", icon: LockKeyhole },
+  { title: "Provider choice", body: "One provider, several providers, or ordered checkpoints per service.", icon: Link2 },
+  { title: "Server-side bootstrap", body: "No public loader asset or static bootstrap endpoint.", icon: ServerCog },
+  { title: "Claudium credits", body: "One successful obfuscation consumes one credit; failed runs refund it.", icon: Coins },
+  { title: "Webhooks and API", body: "Build your own automation around keys, auth events, and completions.", icon: Webhook },
+  { title: "Service isolation", body: "Separate secrets, rules, providers, and keys for every project.", icon: ShieldCheck }
 ];
+
+const sample = [
+  "local response = request({",
+  "    Url = CLAUDMOR_URL .. \"/api/v1/auth\",",
+  "    Method = \"POST\",",
+  "    Headers = { [\"Content-Type\"] = \"application/json\" },",
+  "    Body = HttpService:JSONEncode(payload)",
+  "})",
+  "",
+  "-- private decisions remain server-side"
+].join("\n");
 
 export default function Home() {
   return (
     <main className="home">
-      <nav className="homeNav">
-        <Link href="/" className="homeLogo"><span>C</span> CLAUDMOR</Link>
-        <div className="homeLinks">
-          <a href="#how">How It Works</a>
+      <header className="homeNav">
+        <Link href="/" className="homeLogo">
+          <img src="/claudmor-mark.svg" alt="" />
+          <span>Claudmor</span>
+        </Link>
+        <nav className="homeLinks">
+          <a href="#workflow">Workflow</a>
           <a href="#features">Features</a>
           <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">Discord</a>
           <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">larpcorrupted</a>
-          <Link href="/dashboard" className="homeLogin">Dashboard</Link>
-        </div>
-      </nav>
+        </nav>
+        <Link href="/dashboard" className="navAction">Open dashboard <ArrowRight size={14} /></Link>
+      </header>
 
       <section className="homeHero">
-        <div className="heroGlow heroGlowA" />
-        <div className="heroGlow heroGlowB" />
-        <div className="heroBadge"><i /> AUTHENTICATION + CLAUDIUM</div>
-        <h1>Protect Your Scripts<br/><span>Without The Slop.</span></h1>
-        <p>
-          Claudmor is a Lua key-system and licensing platform for Roblox scripts.
-          Create services, lock keys to users and devices, connect your own monetization
-          providers, and use Claudium obfuscation from one place.
-        </p>
-        <div className="heroActions">
-          <Link href="/dashboard" className="heroPrimary">⚡ Open Dashboard</Link>
-          <a href="#how" className="heroSecondary">▣ See How It Works</a>
+        <div className="heroCopy">
+          <div className="eyebrow">CLAUDMOR / AUTH FOR LUA</div>
+          <h1>Authentication and obfuscation for Lua scripts.</h1>
+          <p>
+            Build a key system around your script without exposing the bootstrap logic.
+            Lock access to devices and accounts, connect your own monetization provider,
+            and send protected code through Claudium.
+          </p>
+          <div className="heroActions">
+            <Link href="/dashboard" className="heroPrimary">Create a service <ArrowRight size={16} /></Link>
+            <a href="#workflow" className="heroSecondary">See the workflow</a>
+          </div>
+          <div className="heroMeta">
+            <span><CheckCircle2 size={14} /> HWID</span>
+            <span><CheckCircle2 size={14} /> Roblox</span>
+            <span><CheckCircle2 size={14} /> Discord</span>
+            <span><CheckCircle2 size={14} /> BYO providers</span>
+          </div>
         </div>
 
-        <div className="terminalPreview">
-          <div className="terminalTop">
-            <div className="terminalDots"><i/><i/><i/></div>
-            <span>CLAUDMOR // SERVICE OVERVIEW</span>
-            <span className="terminalOnline">● ONLINE</span>
-          </div>
-          <div className="terminalBody">
-            <div className="terminalBrand">
-              <span className="terminalMark">C</span>
-              <div><strong>CLAUDMOR</strong><small>AUTH • LICENSE • OBFUSCATE</small></div>
+        <aside className="servicePreview">
+          <div className="previewHead">
+            <div className="previewBrand">
+              <img src="/claudmor-mark.svg" alt="" />
+              <div><strong>Magnify Hub</strong><span>example service</span></div>
             </div>
-            <div className="terminalStats">
-              <div><small>SERVICE</small><strong>Magnify Hub</strong></div>
-              <div><small>LOCKS</small><strong>HWID + ROBLOX</strong></div>
-              <div><small>PROVIDERS</small><strong>3 AVAILABLE</strong></div>
-              <div><small>CLAUDIUM</small><strong>READY</strong></div>
-            </div>
-            <div className="terminalLine"><span>$</span> auth.verify(key, hwid, userId) <em>→ ACCESS GRANTED</em></div>
+            <span className="liveDot">live</span>
           </div>
-        </div>
+          <dl className="previewRows">
+            <div><dt>Authentication</dt><dd>HWID + Roblox UserId</dd></div>
+            <div><dt>Provider flow</dt><dd>LootLabs → Linkvertise</dd></div>
+            <div><dt>Key duration</dt><dd>24 hours</dd></div>
+            <div><dt>Obfuscator</dt><dd>Claudium / ready</dd></div>
+          </dl>
+          <div className="previewCode">
+            <TerminalSquare size={16} />
+            <code>auth.verify(key, hwid, userId)</code>
+            <span>200</span>
+          </div>
+        </aside>
       </section>
 
-      <section className="homeSection" id="how">
-        <div className="sectionEyebrow">// HOW IT WORKS</div>
-        <h2>From Service To Protected Script</h2>
-        <p className="sectionLead">Four steps to get a production-ready Claudmor key system.</p>
-        <div className="stepGrid">
-          {steps.map(([num,title,body]) => (
-            <article className="homeCard" key={num}>
-              <span className="cardNum">{num}</span>
-              <div className="cardIcon">⌁</div>
-              <h3>{title}</h3>
-              <p>{body}</p>
-            </article>
-          ))}
+      <section className="homeSection workflowSection" id="workflow">
+        <div className="sectionIntro">
+          <div className="eyebrow">WORKFLOW</div>
+          <h2>Four decisions, then ship.</h2>
+          <p>No wizard maze. Each step maps directly to something you control in the dashboard.</p>
+        </div>
+        <div className="stepList">
+          {steps.map(step => {
+            const Icon = step.icon;
+            return (
+              <div className="stepRow" key={step.n}>
+                <span className="stepNum">{step.n}</span>
+                <Icon size={19} strokeWidth={1.7} />
+                <div><strong>{step.title}</strong><p>{step.body}</p></div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
       <section className="homeSection" id="features">
-        <div className="sectionEyebrow">// FEATURES</div>
-        <h2>Built For Lua Key Systems</h2>
-        <p className="sectionLead">Authentication, monetization and Claudium without forcing every service into the same setup.</p>
-        <div className="featureGrid">
-          {features.map(([icon,title,body]) => (
-            <article className="featureCard" key={title}>
-              <span className="featureIcon">{icon}</span>
-              <div><h3>{title}</h3><p>{body}</p></div>
-            </article>
-          ))}
+        <div className="sectionIntro">
+          <div className="eyebrow">FEATURES</div>
+          <h2>Useful controls, not dashboard filler.</h2>
+          <p>Claudmor keeps the things you actually change close to the service they affect.</p>
+        </div>
+        <div className="featureList">
+          {features.map(feature => {
+            const Icon = feature.icon;
+            return (
+              <div className="featureRow" key={feature.title}>
+                <Icon size={18} strokeWidth={1.7} />
+                <div><strong>{feature.title}</strong><p>{feature.body}</p></div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      <section className="quickSection">
+      <section className="homeSection quickStart">
         <div className="quickCopy">
-          <div className="sectionEyebrow">// QUICK START</div>
-          <h2>Create Your First Service</h2>
-          <p>Configure the service, choose providers, set your locks, then generate the integration code from the dashboard.</p>
-          <div className="miniList">
-            <span>01</span><div><strong>Create service</strong><small>One project, one isolated key system.</small></div>
-            <span>02</span><div><strong>Choose providers</strong><small>LootLabs, Linkvertise and Boostellar.</small></div>
-            <span>03</span><div><strong>Set locks</strong><small>HWID, Roblox and Discord identity.</small></div>
-          </div>
+          <div className="eyebrow">INTEGRATION</div>
+          <h2>The client stays small.</h2>
+          <p>
+            Treat anything delivered to the executor as public. Claudmor keeps secrets,
+            provider verification, account checks, and bootstrap decisions on the server.
+          </p>
+          <Link href="/dashboard/scripts" className="inlineLink">Generate an integration <ArrowRight size={14} /></Link>
         </div>
-
-        <div className="quickPanel">
-          <div className="quickPanelLabel">// SERVICE SETUP</div>
-          <label>Service Name<input defaultValue="Magnify Hub" readOnly /></label>
-          <label>Protection
-            <div className="fakeChecks">
-              <span>✓ HWID</span><span>✓ Roblox UserId</span><span>○ Discord UserId</span>
-            </div>
-          </label>
-          <label>Provider
-            <div className="fakeChecks">
-              <span>LootLabs</span><span>Linkvertise</span><span>Boostellar</span>
-            </div>
-          </label>
-          <Link href="/dashboard/services" className="quickButton">Create In Dashboard →</Link>
+        <div className="codePanel">
+          <div className="codePanelHead"><Code2 size={15} /> client.lua</div>
+          <pre>{sample}</pre>
         </div>
       </section>
 
       <section className="communityStrip">
         <div>
-          <div className="sectionEyebrow">// COMMUNITY</div>
-          <h2>Claudmor by larpcorrupted</h2>
-          <p>Join the Discord for updates, setup help and Claudium releases.</p>
+          <div className="eyebrow">COMMUNITY</div>
+          <h2>Built by larpcorrupted.</h2>
+          <p>Project updates, support, and Claudium releases live in the Discord.</p>
         </div>
         <div className="communityActions">
-          <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">Discord ↗</a>
-          <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">guns.lol ↗</a>
+          <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer"><MessageCircle size={16} /> Discord <ExternalLink size={13} /></a>
+          <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">guns.lol <ExternalLink size={13} /></a>
         </div>
       </section>
 
       <footer className="homeFooter">
-        <span>CLAUDMOR</span>
+        <Link href="/" className="footerBrand"><img src="/claudmor-mark.svg" alt="" /> Claudmor</Link>
         <span>Authentication for Claudium.</span>
-        <div><a href="https://dsc.gg/oxyenv">Discord</a><a href="https://guns.lol/larpcorrupted">larpcorrupted</a></div>
+        <Link href="/dashboard">Dashboard <ArrowRight size={13} /></Link>
       </footer>
     </main>
   );
