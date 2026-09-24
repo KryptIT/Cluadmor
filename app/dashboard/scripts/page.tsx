@@ -68,6 +68,15 @@ export default function ScriptsPage() {
     }
 
     const serviceData = await servicesRes.json();
+
+    if (!servicesRes.ok) {
+      setAuthenticated(servicesRes.status === 401 ? false : null);
+      setServices([]);
+      setScripts([]);
+      setMessage(serviceData.detail || serviceData.error || "Could not load your workspace.");
+      return;
+    }
+
     const list = serviceData.services || [];
 
     setAuthenticated(true);
@@ -289,6 +298,10 @@ export default function ScriptsPage() {
           </button>
         </div>
       </div>
+
+      {authenticated === null && message && (
+        <div className="formError pageError">{message}</div>
+      )}
 
       {authenticated === false && (
         <div className="notice ownerNotice">
