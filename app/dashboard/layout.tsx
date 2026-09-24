@@ -14,7 +14,8 @@ import {
   ExternalLink,
   Settings,
   Route,
-  FileText
+  FileText,
+  Activity
 } from "lucide-react";
 
 const groups = [
@@ -34,6 +35,7 @@ const groups = [
       { label: "Scripts", href: "/dashboard/scripts", icon: Code2 },
       { label: "Loader routes", href: "/dashboard/routes", icon: Route },
       { label: "Loader", href: "/dashboard/loaders", icon: FileText },
+      { label: "Telemetry", href: "/dashboard/telemetry", icon: Activity },
       { label: "Public pages", href: "/dashboard/public", icon: Globe2 }
     ]
   },
