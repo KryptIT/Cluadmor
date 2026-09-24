@@ -86,7 +86,7 @@ export async function POST(req: Request) {
   const rows = await sql`
     SELECT r.match_type, r.match_value,
            ss.id AS script_id, ss.name AS script_name,
-           ss.source_ciphertext
+           ss.obfuscated_ciphertext
     FROM script_routes r
     JOIN service_scripts ss ON ss.id = r.script_id
     WHERE r.service_id = ${ticket.service_id}
@@ -124,11 +124,19 @@ export async function POST(req: Request) {
   }
 
   const row = rows[0] as any;
-  const decoded = decryptConfig(row.source_ciphertext) as { source?: string };
+  if (!row.obfuscated_ciphertext) {
+    return noStoreJson({
+      ok: false,
+      error: "script_not_built",
+      detail: "The routed script has not been obfuscated yet."
+    }, 409);
+  }
+
+  const decoded = decryptConfig(row.obfuscated_ciphertext) as { source?: string };
   const payload = String(decoded.source || "");
 
   if (!payload) {
-    return noStoreJson({ ok: false, error: "empty_script" }, 500);
+    return noStoreJson({ ok: false, error: "empty_build" }, 500);
   }
 
   const deliveryToken = opaque("CMD", 18);
@@ -168,7 +176,7 @@ export async function POST(req: Request) {
     source,
     scriptName: row.script_name,
     scriptId: row.script_id,
-    protected: false,
+    protected: true,
     matched: {
       type: row.match_type,
       value: row.match_value
