@@ -24,7 +24,8 @@ type SavedScript = {
 };
 
 export default function ScriptsPage() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);\n  const [ownerBypass, setOwnerBypass] = useState(false);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [ownerBypass, setOwnerBypass] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [scripts, setScripts] = useState<SavedScript[]>([]);
   const [serviceId, setServiceId] = useState("");
@@ -51,7 +52,8 @@ export default function ScriptsPage() {
 
     const serviceData = await servicesRes.json();
     const list = serviceData.services || [];
-    setAuthenticated(true);\n    setOwnerBypass(!!serviceData.ownerBypass);
+    setAuthenticated(true);
+    setOwnerBypass(!!serviceData.ownerBypass);
     setServices(list);
     if (!serviceId && list[0]) setServiceId(list[0].id);
 
