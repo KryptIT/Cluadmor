@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Boxes, Check, Copy, KeyRound, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { Boxes, Check, Copy, KeyRound, Plus, RefreshCw, ShieldCheck, Sparkles, X } from "lucide-react";
 
 type Service = {
   id: string;
@@ -17,9 +17,10 @@ type Service = {
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
-  const [owner, setOwner] = useState<boolean | null>(null);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [ownerBypass, setOwnerBypass] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
   const [name, setName] = useState("");
   const [locks, setLocks] = useState({
     hwid: true,
@@ -31,26 +32,52 @@ export default function ServicesPage() {
   const [message, setMessage] = useState("");
 
   async function loadServices() {
-    const res = await fetch("/api/owner/services", { cache: "no-store" });
+    const res = await fetch("/api/workspace/services", { cache: "no-store" });
     if (res.status === 401) {
-      setOwner(false);
+      setAuthenticated(false);
       setServices([]);
       return;
     }
     const data = await res.json();
-    setOwner(true);
+    setAuthenticated(true);
+    setOwnerBypass(!!data.ownerBypass);
     setServices(data.services || []);
   }
 
   useEffect(() => { loadServices(); }, []);
 
+  async function getServiceUnlock() {
+    setBusy("reward");
+    setMessage("");
+    try {
+      const res = await fetch("/api/rewards/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "SERVICE_CREATION" })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Could not start reward flow.");
+        return;
+      }
+      if (data.bypass) {
+        setOwnerBypass(true);
+        setMessage("Owner bypass active.");
+        return;
+      }
+      if (data.url) window.location.href = data.url;
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function createService() {
     if (!name.trim()) return;
-    setBusy(true);
+    setBusy("create");
     setMessage("");
     setIssuedSecret("");
     try {
-      const res = await fetch("/api/owner/services", {
+      const res = await fetch("/api/workspace/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -62,6 +89,10 @@ export default function ServicesPage() {
         })
       });
       const data = await res.json();
+      if (res.status === 402 && data.error === "service_creation_credit_required") {
+        setMessage("One service unlock is required. Complete the LootLabs step, then create the service.");
+        return;
+      }
       if (!res.ok) {
         setMessage(data.error || "Could not create service.");
         return;
@@ -71,7 +102,7 @@ export default function ServicesPage() {
       setCreating(false);
       await loadServices();
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
@@ -85,20 +116,30 @@ export default function ServicesPage() {
         <div>
           <span className="muted">Key system</span>
           <h1>Services</h1>
-          <p>Each service has separate keys, locks, providers, and authentication settings.</p>
+          <p>Every account owns its own services, scripts, keys, providers, and loader routes.</p>
         </div>
-        <button className="primaryBtn" disabled={owner === false} onClick={() => setCreating(true)}>
+        <button className="primaryBtn" disabled={authenticated !== true} onClick={() => setCreating(true)}>
           <Plus size={14} /> New service
         </button>
       </div>
 
-      {owner === false && (
+      {authenticated === false && (
         <div className="notice ownerNotice">
           <div>
-            <strong>Owner mode is not active.</strong>
-            <span>Enter your owner key in Settings to create services without a monetization checkpoint.</span>
+            <strong>Sign in to your Claudmor account.</strong>
+            <span>Normal users can create and manage their own services. Owner mode is only a reward bypass.</span>
           </div>
-          <Link className="secondaryBtn" href="/dashboard/settings"><KeyRound size={14}/> Open settings</Link>
+          <Link className="secondaryBtn" href="/login"><KeyRound size={14}/> Sign in</Link>
+        </div>
+      )}
+
+      {authenticated === true && ownerBypass && (
+        <div className="notice ownerNotice">
+          <div>
+            <strong>Owner bypass active.</strong>
+            <span>Service creation will not consume a LootLabs unlock in this browser session.</span>
+          </div>
+          <Link className="secondaryBtn" href="/dashboard/settings">Settings</Link>
         </div>
       )}
 
@@ -107,13 +148,13 @@ export default function ServicesPage() {
           <div>
             <strong>Service created. Save this secret now.</strong>
             <code>{issuedSecret}</code>
-            <small>Claudmor only stores its hash, so this exact value is shown once.</small>
+            <small>Only its hash is stored, so the exact secret is shown once.</small>
           </div>
           <button className="secondaryBtn" onClick={copySecret}><Copy size={14}/> Copy</button>
         </div>
       )}
 
-      {creating && owner === true && (
+      {creating && authenticated === true && (
         <section className="panelCard createPanel">
           <div className="panelTitle">
             <div><span className="iconBox"><Plus size={15}/></span><strong>Create service</strong></div>
@@ -137,10 +178,15 @@ export default function ServicesPage() {
             </div>
 
             <div className="row">
-              <button className="primaryBtn" disabled={busy || name.trim().length < 2} onClick={createService}>
-                {busy ? <RefreshCw size={14} className="spin"/> : <Check size={14}/>}
-                {busy ? "Creating..." : "Create service"}
+              <button className="primaryBtn" disabled={busy !== "" || name.trim().length < 2} onClick={createService}>
+                {busy === "create" ? <RefreshCw size={14} className="spin"/> : <Check size={14}/>}
+                {busy === "create" ? "Creating..." : "Create service"}
               </button>
+              {!ownerBypass && (
+                <button className="secondaryBtn" disabled={busy !== ""} onClick={getServiceUnlock}>
+                  <Sparkles size={14}/> Get 1 service unlock
+                </button>
+              )}
               <button className="secondaryBtn" onClick={() => setCreating(false)}>Cancel</button>
             </div>
             {message && <div className="formError">{message}</div>}
@@ -158,8 +204,8 @@ export default function ServicesPage() {
           <div className="emptyState large">
             <div className="emptyIcon"><Boxes size={18}/></div>
             <strong>No services</strong>
-            <p>{owner === false ? "Enable owner mode first." : "Create a service to start issuing HWID and account-bound keys."}</p>
-            {owner === true && <button className="primaryBtn" onClick={() => setCreating(true)}><Plus size={14}/> Create service</button>}
+            <p>{authenticated === false ? "Sign in first." : "Create your first service, then add scripts, keys, providers, and loader routes."}</p>
+            {authenticated === true && <button className="primaryBtn" onClick={() => setCreating(true)}><Plus size={14}/> Create service</button>}
           </div>
         ) : (
           <div className="serviceList">
@@ -185,8 +231,8 @@ export default function ServicesPage() {
 
       <div className="hintCard">
         <strong>Next</strong>
-        <p>Choose monetization providers for normal users, or go to Lua Scripts to save and obfuscate your own source with owner mode.</p>
-        <Link href="/dashboard/scripts">Open Lua scripts →</Link>
+        <p>Add scripts, choose where the loader should route each Roblox place/universe, then create keys for the users of that service.</p>
+        <Link href="/dashboard/routes">Configure loader routes →</Link>
       </div>
     </>
   );
