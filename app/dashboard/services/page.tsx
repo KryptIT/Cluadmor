@@ -62,7 +62,7 @@ export default function ServicesPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setMessage(data.error || "Could not start reward flow.");
+        setMessage(data.detail || data.error || "Could not start reward flow.");
         return;
       }
       if (data.bypass) {
