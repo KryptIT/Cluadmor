@@ -32,6 +32,7 @@ export default function ScriptsPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [ownerBypass, setOwnerBypass] = useState(false);
   const [claudiumConfigured, setClaudiumConfigured] = useState<boolean | null>(null);
+  const [claudiumOnline, setClaudiumOnline] = useState<boolean | null>(null);
   const [claudiumDetail, setClaudiumDetail] = useState("");
   const [services, setServices] = useState<Service[]>([]);
   const [scripts, setScripts] = useState<SavedScript[]>([]);
@@ -92,7 +93,8 @@ export default function ScriptsPage() {
 
     if (claudiumRes.ok) {
       const claudiumData = await claudiumRes.json();
-      setClaudiumConfigured(!!claudiumData.online);
+      setClaudiumConfigured(!!claudiumData.configured);
+      setClaudiumOnline(!!claudiumData.online);
       setClaudiumDetail(String(claudiumData.detail || ""));
     }
   }
@@ -276,17 +278,19 @@ export default function ScriptsPage() {
 
         <div className="pageHeadActions">
           <span className={
-            claudiumConfigured === true
+            claudiumOnline === true
               ? "backendState backendOnline"
-              : claudiumConfigured === false
+              : claudiumConfigured === false || claudiumOnline === false
                 ? "backendState backendOffline"
                 : "backendState"
           }>
-            {claudiumConfigured === true
-              ? "Claudium online"
-              : claudiumConfigured === false
-                ? "Claudium offline"
-                : "Checking Claudium"}
+            {claudiumConfigured === false
+              ? "Claudium not configured"
+              : claudiumOnline === true
+                ? "Claudium online"
+                : claudiumOnline === false
+                  ? "Claudium offline"
+                  : "Checking Claudium"}
           </span>
 
           <button
@@ -316,8 +320,17 @@ export default function ScriptsPage() {
       {authenticated === true && claudiumConfigured === false && (
         <div className="notice ownerNotice">
           <div>
-            <strong>Claudium backend is offline.</strong>
-            <span>{claudiumDetail || "Check CLAUDIUM_INTERNAL_URL and CLAUDIUM_INTERNAL_SECRET on Vercel and Railway."}</span>
+            <strong>Claudium is not configured.</strong>
+            <span>Set CLAUDIUM_INTERNAL_URL and CLAUDIUM_INTERNAL_SECRET in Vercel.</span>
+          </div>
+        </div>
+      )}
+
+      {authenticated === true && claudiumConfigured === true && claudiumOnline === false && (
+        <div className="notice ownerNotice">
+          <div>
+            <strong>Claudium health check is currently failing.</strong>
+            <span>{claudiumDetail || "You can still try Re-obfuscate; the request will show the exact Railway error if it fails."}</span>
           </div>
         </div>
       )}
