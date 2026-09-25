@@ -3,7 +3,7 @@ import { encryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { buildLoader } from "@/lib/loader-template";
-import { buildPublicBootstrap } from "@/lib/public-bootstrap";
+import { buildPublicLauncher } from "@/lib/public-bootstrap";
 import { noStoreJson } from "@/lib/security";
 import { workspaceIdentity } from "@/lib/workspace";
 
@@ -80,21 +80,8 @@ export async function POST(req: Request) {
 
   const origin = new URL(req.url).origin;
   const readableLoader = buildLoader(origin, body.serviceId);
-  const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
-
-  const [loaderResult, bootstrapResult] = await Promise.all([
-    runClaudium(readableLoader, "roblox", true),
-    runClaudium(readableBootstrap, "roblox", true)
-  ]);
-
-  if (!loaderResult.ok) {
-    return noStoreJson({
-      ok: false,
-      error: loaderResult.error,
-      detail: loaderResult.detail || null,
-      upstreamStatus: loaderResult.status
-    }, loaderResult.status >= 400 && loaderResult.status < 600 ? loaderResult.status : 502);
-  }
+  const publicLauncher = buildPublicLauncher(origin, body.serviceId);
+  const bootstrapResult = await runClaudium(publicLauncher, "roblox", true);
 
   if (!bootstrapResult.ok) {
     return noStoreJson({
@@ -114,7 +101,7 @@ export async function POST(req: Request) {
     )
     VALUES (
       ${body.serviceId},
-      ${encryptConfig({ source: loaderResult.output })},
+      ${encryptConfig({ source: readableLoader })},
       ${encryptConfig({ source: bootstrapResult.output })},
       now()
     )

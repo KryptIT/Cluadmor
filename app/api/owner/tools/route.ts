@@ -2,7 +2,7 @@ import { runClaudium } from "@/lib/claudium";
 import { decryptConfig, encryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { buildLoader } from "@/lib/loader-template";
-import { buildPublicBootstrap } from "@/lib/public-bootstrap";
+import { buildPublicLauncher } from "@/lib/public-bootstrap";
 import { noStoreJson } from "@/lib/security";
 import { workspaceIdentity } from "@/lib/workspace";
 
@@ -239,27 +239,9 @@ export async function POST(req: Request) {
 
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
-        const readableBootstrap = buildPublicBootstrap(origin, String(service.id));
-        const [loaderResult, bootstrapResult] = await Promise.all([
-          runClaudium(
-            buildLoader(origin, String(service.id)),
-            "roblox",
-            true
-          ),
-          runClaudium(readableBootstrap, "roblox", true)
-        ]);
-
-        if (!loaderResult.ok) {
-          return {
-            id: service.id,
-            name: service.name,
-            ownerId: service.owner_id,
-            owner: service.owner_email || service.owner_username || service.owner_id,
-            ok: false,
-            error: loaderResult.error,
-            detail: loaderResult.detail || null
-          };
-        }
+        const readableLoader = buildLoader(origin, String(service.id));
+        const publicLauncher = buildPublicLauncher(origin, String(service.id));
+        const bootstrapResult = await runClaudium(publicLauncher, "roblox", true);
 
         if (!bootstrapResult.ok) {
           return {
@@ -273,7 +255,7 @@ export async function POST(req: Request) {
 
         await sql`
           UPDATE service_loaders
-          SET loader_ciphertext = ${encryptConfig({ source: loaderResult.output })},
+          SET loader_ciphertext = ${encryptConfig({ source: readableLoader })},
               bootstrap_ciphertext = ${encryptConfig({ source: bootstrapResult.output })},
               updated_at = now()
           WHERE service_id = ${service.id}
@@ -321,25 +303,9 @@ export async function POST(req: Request) {
 
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
-        const readableBootstrap = buildPublicBootstrap(origin, String(service.id));
-        const [loaderResult, bootstrapResult] = await Promise.all([
-          runClaudium(
-            buildLoader(origin, String(service.id)),
-            "roblox",
-            true
-          ),
-          runClaudium(readableBootstrap, "roblox", true)
-        ]);
-
-        if (!loaderResult.ok) {
-          return {
-            id: service.id,
-            name: service.name,
-            ok: false,
-            error: loaderResult.error,
-            detail: loaderResult.detail || null
-          };
-        }
+        const readableLoader = buildLoader(origin, String(service.id));
+        const publicLauncher = buildPublicLauncher(origin, String(service.id));
+        const bootstrapResult = await runClaudium(publicLauncher, "roblox", true);
 
         if (!bootstrapResult.ok) {
           return {
@@ -353,7 +319,7 @@ export async function POST(req: Request) {
 
         await sql`
           UPDATE service_loaders
-          SET loader_ciphertext = ${encryptConfig({ source: loaderResult.output })},
+          SET loader_ciphertext = ${encryptConfig({ source: readableLoader })},
               bootstrap_ciphertext = ${encryptConfig({ source: bootstrapResult.output })},
               updated_at = now()
           WHERE service_id = ${service.id}

@@ -393,3 +393,14 @@ end
 return result
 `;
 }
+
+
+export function buildPublicLauncher(baseUrl: string, serviceId: string) {
+  const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  const stageUrl = `${base}/api/v1/bootstrap/client?serviceId=${encodeURIComponent(serviceId)}`;
+
+  // Keep the public /l/... response tiny enough for Claudium's VM to handle
+  // consistently across executors. The full compatibility bootstrap is fetched
+  // as a second stage and executes outside the VM.
+  return `return loadstring(game:HttpGet(${JSON.stringify(stageUrl)}))()`;
+}
