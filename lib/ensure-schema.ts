@@ -218,10 +218,18 @@ export function ensureWorkspaceSchema() {
           service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
           provider text NOT NULL,
           token_hash text NOT NULL UNIQUE,
+          activation_hash text UNIQUE,
           expires_at timestamptz NOT NULL,
           consumed_at timestamptz,
+          activated_at timestamptz,
           created_at timestamptz NOT NULL DEFAULT now()
         )
+      `;
+
+      await sql`
+        ALTER TABLE provider_key_sessions
+          ADD COLUMN IF NOT EXISTS activation_hash text UNIQUE,
+          ADD COLUMN IF NOT EXISTS activated_at timestamptz
       `;
 
       await sql`CREATE INDEX IF NOT EXISTS idx_provider_key_sessions_expiry ON provider_key_sessions(expires_at)`;
