@@ -31,7 +31,7 @@ function deliveryGuard(
     ? 'if type(__cm.SCRIPT_KEY) ~= "string" or __cm.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end\\n'
     : "";
 
-  return `local __cm = _G
+  return `local __cm = type(_G) == "table" and _G or {}
 if type(getgenv) == "function" then
     local __ok, __env = pcall(getgenv)
     if __ok and type(__env) == "table" then __cm = __env end
@@ -101,7 +101,7 @@ function randomizedGuard(
   }
 
   const lines = shuffle([...checks, ...decoyStatements()]).map(line => `do ${line} end`);
-  return `local ${env} = _G
+  return `local ${env} = type(_G) == "table" and _G or {}
 if type(getgenv) == "function" then
     local __ok, __resolved = pcall(getgenv)
     if __ok and type(__resolved) == "table" then ${env} = __resolved end
