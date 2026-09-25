@@ -8,9 +8,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function withPuid(base: string, sessionId: string) {
-  const url = new URL(base);
-  url.searchParams.set("puid", makeRewardClickId(sessionId));
-  return url.toString();
+  const signed = encodeURIComponent(makeRewardClickId(sessionId));
+
+  // LootLabs short links use a bare query token, e.g. /s?xxxxxx.
+  // URLSearchParams would rewrite that to /s?xxxxxx= and break the link.
+  const hashIndex = base.indexOf("#");
+  const beforeHash = hashIndex === -1 ? base : base.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? "" : base.slice(hashIndex);
+  const join = beforeHash.includes("?") ? "&" : "?";
+
+  return beforeHash + join + "puid=" + signed + hash;
 }
 
 async function expireSession(id: string) {
