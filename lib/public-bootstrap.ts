@@ -13,56 +13,79 @@ if type(getgenv) == "function" then
     end
 end
 
-local requestFn = nil
-local requestSource = nil
-
-local function useRequest(candidate, name)
-    if requestFn == nil and type(candidate) == "function" then
-        requestFn = candidate
-        requestSource = name
-    end
+local requestFn = rawget(ENV, "request")
+if type(requestFn) ~= "function" then
+    requestFn = rawget(_G, "request")
+end
+if type(requestFn) ~= "function" then
+    requestFn = nil
 end
 
-local function safeIndex(scope, key)
-    local ok, value = pcall(function()
-        return scope[key]
+local function httpGet(url)
+    if requestFn then
+        local response = requestFn({
+            Url = url,
+            Method = "GET"
+        })
+
+        local status = tonumber(response.StatusCode or response.Status or 0) or 0
+        local body = response.Body or response.body or ""
+
+        if status >= 200 and status < 300 then
+            return body
+        end
+
+        error("[Claudmor] GET failed (" .. tostring(status) .. ")", 0)
+    end
+
+    local ok, body = pcall(function()
+        return game:HttpGet(url)
     end)
-    if ok then
-        return value
+    if ok and type(body) == "string" then
+        return body
     end
-    return nil
+
+    ok, body = pcall(function()
+        return game:HttpGetAsync(url)
+    end)
+    if ok and type(body) == "string" then
+        return body
+    end
+
+    error("[Claudmor] no HTTP GET transport; expected request(), game:HttpGet(), or game:HttpGetAsync()", 0)
 end
 
-local function tryScope(scope, name)
-    if scope == nil then
-        return
+local function httpPost(url, bodyTable, headers)
+    local encoded = HttpService:JSONEncode(bodyTable or {})
+
+    if requestFn then
+        local response = requestFn({
+            Url = url,
+            Method = "POST",
+            Headers = headers or {
+                ["Content-Type"] = "application/json"
+            },
+            Body = encoded
+        })
+
+        return response.Body or response.body or ""
     end
-    useRequest(safeIndex(scope, "request"), name .. ".request")
-    useRequest(safeIndex(scope, "http_request"), name .. ".http_request")
-end
 
-tryScope(ENV, "getgenv()")
-tryScope(_G, "_G")
+    local ok, body = pcall(function()
+        return game:HttpPost(url, encoded, Enum.HttpContentType.ApplicationJson)
+    end)
 
-local namespaceNames = {
-    "syn",
-    "http",
-    "fluxus",
-    "krnl",
-    "delta",
-    "executor"
-}
-
-for _, name in ipairs(namespaceNames) do
-    local scope = safeIndex(ENV, name)
-    if scope == nil then
-        scope = safeIndex(_G, name)
+    if not ok then
+        ok, body = pcall(function()
+            return game:HttpPost(url, encoded)
+        end)
     end
-    tryScope(scope, name)
-end
 
-if not requestFn then
-    error("[Claudmor] executor request API is unavailable after safe probing of getgenv(), _G, syn, http, fluxus, krnl, delta, executor", 0)
+    if not ok then
+        error("[Claudmor] no HTTP POST transport; expected request() or game:HttpPost(): " .. tostring(body), 0)
+    end
+
+    return type(body) == "string" and body or tostring(body or "")
 end
 
 local compiler = loadstring or load
@@ -77,28 +100,14 @@ local config = {
 }
 
 do
-    local okConfig, result = pcall(function()
-        return requestFn({
-            Url = "${base}/api/v1/key-ui/config?serviceId=${serviceId}",
-            Method = "GET",
-            Headers = {
-                ["Accept"] = "application/json",
-                ["X-Claudmor-Client"] = "executor"
-            }
-        })
-    end)
+    local okConfig, raw = pcall(httpGet, "${base}/api/v1/key-ui/config?serviceId=${serviceId}")
 
-    if okConfig and type(result) == "table" then
-        local status = tonumber(result.StatusCode or result.Status or 0) or 0
-        local raw = result.Body or result.body or ""
-
-        if status >= 200 and status < 300 and type(raw) == "string" then
-            local okJson, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
-            if okJson and type(decoded) == "table" then
-                config.keySystemEnabled = decoded.keySystemEnabled ~= false
-                config.customUiEnabled = decoded.customUiEnabled == true
-                config.serviceName = tostring(decoded.serviceName or "Claudmor")
-            end
+    if okConfig and type(raw) == "string" then
+        local okJson, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+        if okJson and type(decoded) == "table" then
+            config.keySystemEnabled = decoded.keySystemEnabled ~= false
+            config.customUiEnabled = decoded.customUiEnabled == true
+            config.serviceName = tostring(decoded.serviceName or "Claudmor")
         end
     end
 end
@@ -110,7 +119,7 @@ local function getUiLibrary()
         return uiLibrary
     end
 
-    local uiSource = game:HttpGet("${base}/sdk/library.lua")
+    local uiSource = httpGet("${base}/sdk/library.lua")
     local uiChunk, uiError = compiler(uiSource, "@Claudmor/key-ui")
 
     if not uiChunk then
@@ -242,35 +251,39 @@ end
 local hwid = getHwid()
 
 local function fetchProtectedLoader()
-    return requestFn({
-        Url = "${base}/api/v1/loader/runtime",
-        Method = "POST",
-        Headers = {
-            ["Content-Type"] = "application/json",
-            ["Accept"] = "text/plain",
-            ["X-Claudmor-Client"] = "executor",
-            ["X-Claudmor-Protocol"] = "1"
-        },
-        Body = HttpService:JSONEncode({
+    local raw = httpPost(
+        "${base}/api/v1/loader/runtime?transport=bootstrap",
+        {
             serviceId = "${serviceId}",
             key = SCRIPT_KEY,
             hwid = hwid,
             robloxUserId = tostring(player.UserId),
             robloxUsername = player.Name,
             discordUserId = ENV.DISCORD_USER_ID and tostring(ENV.DISCORD_USER_ID) or nil
-        })
-    })
+        },
+        {
+            ["Content-Type"] = "application/json",
+            ["Accept"] = "application/json",
+            ["X-Claudmor-Client"] = "executor",
+            ["X-Claudmor-Protocol"] = "1"
+        }
+    )
+
+    local okJson, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+    if not okJson or type(decoded) ~= "table" then
+        error("[Claudmor] invalid loader transport response", 0)
+    end
+
+    return decoded
 end
 
 local source = nil
 
 for attempt = 1, 5 do
     local response = fetchProtectedLoader()
-    local status = tonumber(response.StatusCode or response.Status or 0) or 0
-    local body = response.Body or response.body or ""
 
-    if status >= 200 and status < 300 then
-        source = body
+    if response.ok == true and type(response.source) == "string" then
+        source = response.source
 
         if config.keySystemEnabled and type(uiLibrary) == "table" and type(uiLibrary.saveKey) == "function" then
             pcall(uiLibrary.saveKey, "${serviceId}", SCRIPT_KEY)
@@ -279,6 +292,8 @@ for attempt = 1, 5 do
         break
     end
 
+    local status = tonumber(response.status or 0) or 0
+    local body = tostring(response.error or response.detail or "loader request failed")
     local keyFailure =
         status == 401 or
         body:find("key_check_failed", 1, true) ~= nil or
@@ -294,7 +309,7 @@ for attempt = 1, 5 do
 
         ENV.SCRIPT_KEY = SCRIPT_KEY
     else
-        error("[Claudmor] loader request failed (" .. tostring(status) .. "): " .. tostring(body), 0)
+        error("[Claudmor] loader request failed (" .. tostring(status) .. "): " .. body, 0)
     end
 end
 

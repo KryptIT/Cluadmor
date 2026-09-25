@@ -14,56 +14,51 @@ if type(getgenv) == "function" then
 end
 local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
 
-local requestFn = nil
-local requestSource = nil
-
-local function useRequest(candidate, name)
-    if requestFn == nil and type(candidate) == "function" then
-        requestFn = candidate
-        requestSource = name
-    end
+local requestFn = rawget(ENV, "request")
+if type(requestFn) ~= "function" then
+    requestFn = rawget(_G, "request")
+end
+if type(requestFn) ~= "function" then
+    requestFn = nil
 end
 
-local function safeIndex(scope, key)
-    local ok, value = pcall(function()
-        return scope[key]
+local function httpPost(url, bodyTable, headers)
+    local encoded = HttpService:JSONEncode(bodyTable or {})
+
+    if requestFn then
+        local response = requestFn({
+            Url = url,
+            Method = "POST",
+            Headers = headers or {
+                ["Content-Type"] = "application/json"
+            },
+            Body = encoded
+        })
+
+        return {
+            status = tonumber(response.StatusCode or response.Status or 0) or 0,
+            body = response.Body or response.body or ""
+        }
+    end
+
+    local ok, body = pcall(function()
+        return game:HttpPost(url, encoded, Enum.HttpContentType.ApplicationJson)
     end)
-    if ok then
-        return value
+
+    if not ok then
+        ok, body = pcall(function()
+            return game:HttpPost(url, encoded)
+        end)
     end
-    return nil
-end
 
-local function tryScope(scope, name)
-    if scope == nil then
-        return
+    if not ok then
+        error("[Claudmor] no HTTP POST transport; expected request() or game:HttpPost(): " .. tostring(body), 0)
     end
-    useRequest(safeIndex(scope, "request"), name .. ".request")
-    useRequest(safeIndex(scope, "http_request"), name .. ".http_request")
-end
 
-tryScope(ENV, "getgenv()")
-tryScope(_G, "_G")
-
-local namespaceNames = {
-    "syn",
-    "http",
-    "fluxus",
-    "krnl",
-    "delta",
-    "executor"
-}
-
-for _, name in ipairs(namespaceNames) do
-    local scope = safeIndex(ENV, name)
-    if scope == nil then
-        scope = safeIndex(_G, name)
-    end
-    tryScope(scope, name)
-end
-
-if not requestFn then
-    error("[Claudmor] executor request API is unavailable after safe probing of getgenv(), _G, syn, http, fluxus, krnl, delta, executor", 0)
+    return {
+        status = 200,
+        body = type(body) == "string" and body or tostring(body or "")
+    }
 end
 
 -- Captured before any network wait so a later swap of loadstring is not picked up.
@@ -84,15 +79,9 @@ local function post(path, body, headers)
         end
     end
 
-    local response = requestFn({
-        Url = "${base}" .. path,
-        Method = "POST",
-        Headers = h,
-        Body = HttpService:JSONEncode(body or {})
-    })
-
-    local status = tonumber(response.StatusCode or response.Status or 0) or 0
-    local raw = response.Body or response.body or ""
+    local response = httpPost("${base}" .. path, body or {}, h)
+    local status = tonumber(response.status or 0) or 0
+    local raw = response.body or ""
 
     if status < 200 or status >= 300 then
         local detail = raw
