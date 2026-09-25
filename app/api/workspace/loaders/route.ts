@@ -1,4 +1,3 @@
-import { runClaudium } from "@/lib/claudium";
 import { encryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
