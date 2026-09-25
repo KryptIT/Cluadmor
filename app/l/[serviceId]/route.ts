@@ -59,14 +59,19 @@ export async function GET(
   const source = String(decoded.source || "");
   if (!source) return luaResponse("-- Claudmor bootstrap unavailable", 503);
 
-  // Capture the executor compiler before Claudium's VM starts. The obfuscated
-  // launcher returns only the second-stage URL; compilation happens here,
-  // outside the VM, so Roblox's disabled RobloxScript loadstring is never used.
+  const stageUrl =
+    `${new URL(req.url).origin}/api/v1/bootstrap/client?serviceId=${encodeURIComponent(serviceId)}`;
+
+  // Run the obfuscated public gate, but never use its return value as a URL.
+  // Some executors do not preserve Claudium VM return values consistently.
+  // The real stage URL is generated server-side and compiled with the executor's
+  // loadstring that was captured before the VM runs.
   const wrapped = `local __cm_loadstring = loadstring
-local __cm_stage_url = (function()
+local __cm_gate = function()
 ${source}
-end)()
-return __cm_loadstring(game:HttpGet(__cm_stage_url))()
+end
+__cm_gate()
+return __cm_loadstring(game:HttpGet(${JSON.stringify(stageUrl)}))()
 `;
 
   return luaResponse(wrapped, 200);
