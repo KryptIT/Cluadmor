@@ -47,6 +47,12 @@ export async function POST(req: Request) {
   if (service.key_system_enabled && !body.key) {
     return fail("missing_key", 400, "SCRIPT_KEY is missing.", "required_key");
   }
+  if (service.key_system_enabled && !body.robloxUserId) {
+    return fail("missing_roblox_user_id", 400, "Roblox UserId is missing.", "required_roblox_user_id");
+  }
+  if (service.key_system_enabled && !body.robloxUsername) {
+    return fail("missing_roblox_username", 400, "Roblox username is missing.", "required_roblox_username");
+  }
 
   const rawIp = clientIp(req.headers);
   const hwid = normalizeHwid(body.hwid);
@@ -97,6 +103,40 @@ export async function POST(req: Request) {
     key = rows[0] as any;
 
     if (!key) {
+      const activated = await sql`
+        WITH pending AS (
+          UPDATE provider_key_sessions
+          SET activated_at = now()
+          WHERE service_id = ${service.id}
+            AND activation_hash = ${keyHash}
+            AND consumed_at IS NOT NULL
+            AND activated_at IS NULL
+            AND expires_at > now()
+          RETURNING service_id
+        ),
+        inserted AS (
+          INSERT INTO license_keys(
+            service_id, key_hash, hwid_hash, roblox_user_id, roblox_username, expires_at
+          )
+          SELECT
+            p.service_id,
+            ${keyHash},
+            ${hwidHash},
+            ${String(body.robloxUserId || "")},
+            ${String(body.robloxUsername || "")},
+            now() + (COALESCE(sks.key_duration_minutes, 1440) * interval '1 minute')
+          FROM pending p
+          LEFT JOIN service_key_settings sks ON sks.service_id = p.service_id
+          RETURNING id, hwid_hash, roblox_user_id, roblox_username, discord_user_id,
+                    expires_at, revoked_at
+        )
+        SELECT * FROM inserted
+      `;
+
+      key = activated[0] as any;
+    }
+
+    if (!key) {
       await recordTelemetry({ serviceId: service.id, eventType: "AUTH_REJECTED", hwidHash, ipHash, reason: "invalid_key" });
       return fail("invalid_key", 401, "The supplied key does not exist for this service.", "key_exists");
     }
@@ -117,31 +157,30 @@ export async function POST(req: Request) {
       return fail("key_revoked", 403, "This key was automatically revoked after shared-key use was detected.", "key_sharing");
     }
 
-    if (service.require_hwid) {
-      if (key.hwid_hash && key.hwid_hash !== hwidHash) {
-        await recordTelemetry({ serviceId: service.id, keyId: key.id, eventType: "AUTH_REJECTED", hwidHash, ipHash, reason: "hwid_mismatch" });
-        return fail("hwid_mismatch", 403, "The key is bound to a different HWID.", "hwid_binding");
-      }
-
-      if (!key.hwid_hash) {
-        await sql`
-          UPDATE license_keys
-          SET hwid_hash = ${hwidHash}
-          WHERE id = ${key.id}
-            AND hwid_hash IS NULL
-        `;
-      }
+    if (key.hwid_hash && key.hwid_hash !== hwidHash) {
+      await recordTelemetry({ serviceId: service.id, keyId: key.id, eventType: "AUTH_REJECTED", hwidHash, ipHash, reason: "hwid_mismatch" });
+      return fail("hwid_mismatch", 403, "The key is bound to a different HWID.", "hwid_binding");
     }
 
-    if (service.require_roblox_user_id && String(key.roblox_user_id || "") !== String(body.robloxUserId || "")) {
+    if (key.roblox_user_id && String(key.roblox_user_id) !== String(body.robloxUserId || "")) {
       return fail("roblox_user_id_mismatch", 403, "The key is bound to a different Roblox UserId.", "roblox_user_id_binding");
     }
 
     if (
-      service.require_roblox_username &&
-      String(key.roblox_username || "").toLowerCase() !== String(body.robloxUsername || "").toLowerCase()
+      key.roblox_username &&
+      String(key.roblox_username).toLowerCase() !== String(body.robloxUsername || "").toLowerCase()
     ) {
       return fail("roblox_username_mismatch", 403, "The key is bound to a different Roblox username.", "roblox_username_binding");
+    }
+
+    if (!key.hwid_hash || !key.roblox_user_id || !key.roblox_username) {
+      await sql`
+        UPDATE license_keys
+        SET hwid_hash = COALESCE(hwid_hash, ${hwidHash}),
+            roblox_user_id = COALESCE(roblox_user_id, ${String(body.robloxUserId || "")}),
+            roblox_username = COALESCE(roblox_username, ${String(body.robloxUsername || "")})
+        WHERE id = ${key.id}
+      `;
     }
 
     if (service.require_discord_user_id && String(key.discord_user_id || "") !== String(body.discordUserId || "")) {
