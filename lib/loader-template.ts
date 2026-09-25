@@ -59,15 +59,18 @@ local function httpPost(url, bodyTable, headers)
     }
 end
 
--- Captured before any network wait so a later swap of loadstring is not picked up.
-local compiler = nil
-if type(ENV.loadstring) == "function" then
+-- The readable bootstrap passes the executor's real compiler into this
+-- obfuscated loader. This avoids obfuscator VM environments hiding loadstring.
+local inheritedCompiler = ...
+local compiler = type(inheritedCompiler) == "function" and inheritedCompiler or nil
+
+if type(compiler) ~= "function" and type(ENV.loadstring) == "function" then
     compiler = ENV.loadstring
-elseif type(loadstring) == "function" then
+elseif type(compiler) ~= "function" and type(loadstring) == "function" then
     compiler = loadstring
-elseif type(ENV.load) == "function" then
+elseif type(compiler) ~= "function" and type(ENV.load) == "function" then
     compiler = ENV.load
-elseif type(load) == "function" then
+elseif type(compiler) ~= "function" and type(load) == "function" then
     compiler = load
 end
 
