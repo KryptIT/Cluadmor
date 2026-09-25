@@ -2,6 +2,18 @@ export type ClaudiumResult =
   | { ok: true; output: string; raw: string }
   | { ok: false; status: number; error: string; detail?: string };
 
+function isInternalLoaderSource(source: string) {
+  return (
+    source.includes('local function envGet(key)') &&
+    source.includes('local function envSet(key, value)') &&
+    source.includes('/api/v1/auth') &&
+    source.includes('/api/v1/bootstrap/ticket') &&
+    source.includes('/api/v1/loader/fetch') &&
+    source.includes('source = delivery.source') &&
+    source.includes('scriptName = tostring(delivery.scriptName or "script")')
+  );
+}
+
 function rawBaseUrl() {
   const raw = (process.env.CLAUDIUM_INTERNAL_URL || "").trim();
   if (!raw) return null;
@@ -75,6 +87,13 @@ export async function claudiumHealth() {
 }
 
 export async function runClaudium(source: string, preset = "executor", antiTamper = true): Promise<ClaudiumResult> {
+  // Claudium's VM has repeatedly corrupted Roblox service/member access in the
+  // internal runtime loader. Keep that small transport/auth loader readable;
+  // user scripts still go through the normal obfuscation path.
+  if (isInternalLoaderSource(source)) {
+    return { ok: true, output: source, raw: source };
+  }
+
   const url = endpoint();
   const secret = (process.env.CLAUDIUM_INTERNAL_SECRET || "").trim();
 
