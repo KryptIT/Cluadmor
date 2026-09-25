@@ -59,25 +59,6 @@ local function httpPost(url, bodyTable, headers)
     }
 end
 
--- The bootstrap passes the executor's real compiler into the loader.
--- This keeps compilation bound to the executor's own environment.
-local inheritedCompiler = ...
-local compiler = type(inheritedCompiler) == "function" and inheritedCompiler or nil
-
-if type(compiler) ~= "function" and type(ENV.loadstring) == "function" then
-    compiler = ENV.loadstring
-elseif type(compiler) ~= "function" and type(loadstring) == "function" then
-    compiler = loadstring
-elseif type(compiler) ~= "function" and type(ENV.load) == "function" then
-    compiler = ENV.load
-elseif type(compiler) ~= "function" and type(load) == "function" then
-    compiler = load
-end
-
-if type(compiler) ~= "function" then
-    error("[Claudmor] loadstring is unavailable", 0)
-end
-
 local function post(path, body, headers)
     local h = {
         ["Content-Type"] = "application/json",
@@ -229,11 +210,6 @@ local function setMarkers(on)
     ENV.__CLAUDMOR_SERVICE = on and "${serviceId}" or nil
 end
 
-local chunk, compileError = compiler(delivery.source, "@Claudmor/" .. tostring(delivery.scriptName or "script"))
-if not chunk then
-    error("[Claudmor] compile failed: " .. tostring(compileError), 0)
-end
-
 -- Keeps the runtime session alive with a rotating token; when the server ends the session
 -- (revoked key, expired, replayed token) the markers are cleared. Best effort: code that is
 -- already running cannot be forcibly stopped, but the session is dead server-side.
@@ -263,14 +239,15 @@ if type(heartbeat) == "table" and type(heartbeat.token) == "string" and type(hea
     end)
 end
 
-setMarkers(true)
-local ok, result = pcall(chunk)
-setMarkers(false)
-
-if not ok then
-    error(result, 0)
-end
-
-return result
+return {
+    source = delivery.source,
+    scriptName = tostring(delivery.scriptName or "script"),
+    begin = function()
+        setMarkers(true)
+    end,
+    finish = function()
+        setMarkers(false)
+    end
+}
 `;
 }
