@@ -252,20 +252,37 @@ export default function OwnerToolsPage() {
 
           <div className="settingsBody">
             <p>
-              Regenerate every published loader and public bootstrap with the
-              latest Claudium build.
+              Regenerate published loaders and public bootstraps with the latest
+              Claudium build.
             </p>
 
-            <button
-              className="primaryBtn"
-              disabled={busy !== ""}
-              onClick={() => runAction("republish_all_loaders")}
-            >
-              {busy === "republish_all_loaders"
-                ? <Loader2 size={14} className="spin"/>
-                : <RefreshCcw size={14}/>}
-              Re-obfuscate all loaders
-            </button>
+            <div className="row">
+              <button
+                className="secondaryBtn"
+                disabled={busy !== ""}
+                onClick={() => runAction("republish_all_loaders")}
+              >
+                {busy === "republish_all_loaders"
+                  ? <Loader2 size={14} className="spin"/>
+                  : <RefreshCcw size={14}/>}
+                My loaders
+              </button>
+
+              <button
+                className="primaryBtn"
+                disabled={busy !== ""}
+                onClick={() => runAction("republish_all_users_loaders")}
+              >
+                {busy === "republish_all_users_loaders"
+                  ? <Loader2 size={14} className="spin"/>
+                  : <RefreshCcw size={14}/>}
+                All users' loaders
+              </button>
+            </div>
+
+            <small className="muted">
+              System-wide rebuild affects every currently published Claudmor loader.
+            </small>
           </div>
         </section>
       </div>

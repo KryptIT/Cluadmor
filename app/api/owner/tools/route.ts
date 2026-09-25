@@ -135,6 +135,90 @@ export async function POST(req: Request) {
     });
   }
 
+  if (action === "republish_all_users_loaders") {
+    const rows = await sql`
+      SELECT
+        s.id,
+        s.name,
+        s.owner_id,
+        u.email AS owner_email,
+        u.username AS owner_username
+      FROM services s
+      JOIN service_loaders sl ON sl.service_id = s.id
+      JOIN users u ON u.id = s.owner_id
+      ORDER BY s.created_at ASC
+    `;
+
+    const origin = new URL(req.url).origin.replace(/\/+$/, "");
+
+    const results = await mapLimit(rows as any[], 2, async service => {
+      try {
+        const [loaderResult, bootstrapResult] = await Promise.all([
+          runClaudium(buildLoader(origin, String(service.id)), "executor", true),
+          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", true)
+        ]);
+
+        if (!loaderResult.ok) {
+          return {
+            id: service.id,
+            name: service.name,
+            ownerId: service.owner_id,
+            owner: service.owner_email || service.owner_username || service.owner_id,
+            ok: false,
+            error: loaderResult.error,
+            detail: loaderResult.detail || null
+          };
+        }
+
+        if (!bootstrapResult.ok) {
+          return {
+            id: service.id,
+            name: service.name,
+            ownerId: service.owner_id,
+            owner: service.owner_email || service.owner_username || service.owner_id,
+            ok: false,
+            error: bootstrapResult.error,
+            detail: bootstrapResult.detail || null
+          };
+        }
+
+        await sql`
+          UPDATE service_loaders
+          SET loader_ciphertext = ${encryptConfig({ source: loaderResult.output })},
+              bootstrap_ciphertext = ${encryptConfig({ source: bootstrapResult.output })},
+              updated_at = now()
+          WHERE service_id = ${service.id}
+        `;
+
+        return {
+          id: service.id,
+          name: service.name,
+          ownerId: service.owner_id,
+          owner: service.owner_email || service.owner_username || service.owner_id,
+          ok: true
+        };
+      } catch (error) {
+        return {
+          id: service.id,
+          name: service.name,
+          ownerId: service.owner_id,
+          owner: service.owner_email || service.owner_username || service.owner_id,
+          ok: false,
+          error: error instanceof Error ? error.message : "unknown_error"
+        };
+      }
+    });
+
+    return noStoreJson({
+      ok: true,
+      action,
+      scope: "all_users",
+      total: results.length,
+      succeeded: results.filter((x: any) => x.ok).length,
+      failed: results.filter((x: any) => !x.ok)
+    });
+  }
+
   if (action === "republish_all_loaders") {
     const rows = await sql`
       SELECT s.id, s.name
