@@ -240,8 +240,8 @@ export async function POST(req: Request) {
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
         const [loaderResult, bootstrapResult] = await Promise.all([
-          runClaudium(buildLoader(origin, String(service.id)), "executor", true),
-          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", true)
+          runClaudium(buildLoader(origin, String(service.id)), "executor", false),
+          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", false)
         ]);
 
         if (!loaderResult.ok) {
@@ -319,8 +319,8 @@ export async function POST(req: Request) {
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
         const [loaderResult, bootstrapResult] = await Promise.all([
-          runClaudium(buildLoader(origin, String(service.id)), "executor", true),
-          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", true)
+          runClaudium(buildLoader(origin, String(service.id)), "executor", false),
+          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", false)
         ]);
 
         if (!loaderResult.ok) {
