@@ -14,6 +14,32 @@ function isInternalLoaderSource(source: string) {
   );
 }
 
+function makeRoutedGuardVmSafe(source: string) {
+  const marker = 'if __cm.__CLAUDMOR_AUTHORIZED ~= true then error("[Claudmor] unauthorized execution", 0) end\n';
+  const markerAt = source.indexOf(marker);
+  if (markerAt < 0) return source;
+
+  const servicePrefix = 'if __cm.__CLAUDMOR_SERVICE ~= "';
+  const serviceAt = source.indexOf(servicePrefix, markerAt + marker.length);
+  if (serviceAt < 0) return source;
+
+  const serviceEnd = source.indexOf('" then error("[Claudmor] invalid service", 0) end\n', serviceAt + servicePrefix.length);
+  if (serviceEnd < 0) return source;
+
+  const serviceId = source.slice(serviceAt + servicePrefix.length, serviceEnd);
+  const suffixAt = serviceEnd + '" then error("[Claudmor] invalid service", 0) end\n'.length;
+  const userSource = source.slice(suffixAt);
+
+  // Keep the embedded authorization checks, but use direct globals only.
+  // Claudium's VM has shown register/type corruption on the old getgenv + table
+  // member guard, turning __cm/key operands into booleans on valid Roblox runs.
+  return [
+    'if __CLAUDMOR_AUTHORIZED ~= true then error("[Claudmor] unauthorized execution", 0) end',
+    'if __CLAUDMOR_SERVICE ~= "' + serviceId + '" then error("[Claudmor] invalid service", 0) end',
+    userSource
+  ].join("\n");
+}
+
 function rawBaseUrl() {
   const raw = (process.env.CLAUDIUM_INTERNAL_URL || "").trim();
   if (!raw) return null;
@@ -109,7 +135,7 @@ export async function runClaudium(source: string, preset = "executor", antiTampe
         "Authorization": `Bearer ${secret}`
       },
       body: JSON.stringify({
-        source,
+        source: makeRoutedGuardVmSafe(source),
         preset: preset || "executor",
         antiTamper
       }),
