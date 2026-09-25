@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Ban,
+  Coins,
   FileCode2,
   Loader2,
   RefreshCcw,
@@ -26,10 +27,22 @@ type Block = {
   hwid_hash?: string | null;
 };
 
+type CreditUser = {
+  id: string;
+  email?: string | null;
+  username?: string | null;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  obfuscation_credits: number;
+  unlimited_obfuscation_credits: boolean;
+};
+
 export default function OwnerToolsPage() {
   const [owner, setOwner] = useState<boolean | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [users, setUsers] = useState<CreditUser[]>([]);
+  const [userSearch, setUserSearch] = useState("");
   const [kind, setKind] = useState("IP");
   const [value, setValue] = useState("");
   const [reason, setReason] = useState("");
@@ -44,12 +57,21 @@ export default function OwnerToolsPage() {
     setOwner(active);
     if (!active) return;
 
-    const res = await fetch("/api/owner/blacklist", { cache: "no-store" });
-    if (!res.ok) return;
+    const [blacklistRes, usersRes] = await Promise.all([
+      fetch("/api/owner/blacklist", { cache: "no-store" }),
+      fetch("/api/owner/users", { cache: "no-store" })
+    ]);
 
-    const data = await res.json();
-    setEntries(data.entries || []);
-    setBlocks(data.recentBlocks || []);
+    if (blacklistRes.ok) {
+      const data = await blacklistRes.json();
+      setEntries(data.entries || []);
+      setBlocks(data.recentBlocks || []);
+    }
+
+    if (usersRes.ok) {
+      const data = await usersRes.json();
+      setUsers(data.users || []);
+    }
   }
 
   useEffect(() => {
@@ -81,6 +103,30 @@ export default function OwnerToolsPage() {
           failed ? `; ${failed} failed` : "."
         }`
       );
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function setUnlimited(userId: string, enabled: boolean) {
+    setBusy("credit-" + userId);
+    setMessage("");
+
+    try {
+      const res = await fetch("/api/owner/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, unlimitedObfuscation: enabled })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Could not update user credit access.");
+        return;
+      }
+
+      setMessage(enabled ? "Unlimited credits enabled." : "Unlimited credits removed.");
+      await load();
     } finally {
       setBusy("");
     }
@@ -225,6 +271,58 @@ export default function OwnerToolsPage() {
       </div>
 
       {message && <div className="settingsMessage">{message}</div>}
+
+      <section className="panelCard outputPanel">
+        <div className="panelTitle">
+          <div>
+            <span className="iconBox"><Coins size={15}/></span>
+            <strong>User credit access</strong>
+          </div>
+        </div>
+
+        <div className="settingsBody">
+          <p>Select Claudmor accounts that should have permanent unlimited Claudium obfuscation credits.</p>
+          <input
+            className="input"
+            value={userSearch}
+            onChange={e => setUserSearch(e.target.value)}
+            placeholder="Search by email, username, or display name"
+          />
+        </div>
+
+        <div className="overviewList">
+          {users
+            .filter(user => {
+              const q = userSearch.trim().toLowerCase();
+              if (!q) return true;
+              return [user.email, user.username, user.display_name]
+                .filter(Boolean)
+                .some(value => String(value).toLowerCase().includes(q));
+            })
+            .map(user => (
+              <div className="overviewRow" key={user.id}>
+                <Coins size={15}/>
+                <div>
+                  <strong>{user.display_name || user.username || user.email || "Claudmor user"}</strong>
+                  <small>
+                    {user.email || user.id} - credits: {user.unlimited_obfuscation_credits ? "∞" : user.obfuscation_credits}
+                  </small>
+                </div>
+
+                <button
+                  className={user.unlimited_obfuscation_credits ? "secondaryBtn" : "primaryBtn"}
+                  disabled={busy !== ""}
+                  onClick={() => setUnlimited(user.id, !user.unlimited_obfuscation_credits)}
+                >
+                  {busy === "credit-" + user.id
+                    ? <Loader2 size={13} className="spin"/>
+                    : <Coins size={14}/>}
+                  {user.unlimited_obfuscation_credits ? "Remove unlimited" : "Give unlimited"}
+                </button>
+              </div>
+            ))}
+        </div>
+      </section>
 
       <section className="panelCard outputPanel">
         <div className="panelTitle">

@@ -30,7 +30,8 @@ export async function GET(req: Request) {
 
   const rows = await sql`
     SELECT id, username, display_name, avatar_url, email,
-           obfuscation_credits, service_creation_credits
+           obfuscation_credits, service_creation_credits,
+           unlimited_obfuscation_credits
     FROM users
     WHERE id = ${account.userId}
     LIMIT 1

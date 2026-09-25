@@ -59,6 +59,19 @@ export async function POST(req: Request) {
     return noStoreJson({ ok: false, error: "invalid_reward_type" }, 400);
   }
 
+  if (body.type === "OBFUSCATION") {
+    const users = await sql`
+      SELECT unlimited_obfuscation_credits
+      FROM users
+      WHERE id = ${identity.userId}
+      LIMIT 1
+    `;
+
+    if ((users[0] as any)?.unlimited_obfuscation_credits) {
+      return noStoreJson({ ok: true, bypass: true, reason: "unlimited_obfuscation_credits" });
+    }
+  }
+
   const sessions = await sql`
     INSERT INTO reward_sessions(user_id, reward_type, expires_at)
     VALUES (

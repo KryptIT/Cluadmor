@@ -17,6 +17,7 @@ export function ensureWorkspaceSchema() {
           avatar_url text,
           obfuscation_credits integer NOT NULL DEFAULT 0 CHECK (obfuscation_credits >= 0),
           service_creation_credits integer NOT NULL DEFAULT 0 CHECK (service_creation_credits >= 0),
+          unlimited_obfuscation_credits boolean NOT NULL DEFAULT false,
           created_at timestamptz NOT NULL DEFAULT now()
         )
       `;
@@ -27,7 +28,8 @@ export function ensureWorkspaceSchema() {
           ADD COLUMN IF NOT EXISTS display_name text,
           ADD COLUMN IF NOT EXISTS avatar_url text,
           ADD COLUMN IF NOT EXISTS obfuscation_credits integer NOT NULL DEFAULT 0,
-          ADD COLUMN IF NOT EXISTS service_creation_credits integer NOT NULL DEFAULT 0
+          ADD COLUMN IF NOT EXISTS service_creation_credits integer NOT NULL DEFAULT 0,
+          ADD COLUMN IF NOT EXISTS unlimited_obfuscation_credits boolean NOT NULL DEFAULT false
       `;
 
       await sql`

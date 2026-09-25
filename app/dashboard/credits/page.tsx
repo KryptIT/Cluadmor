@@ -9,6 +9,7 @@ type Session = {
   ownerBypass?: boolean;
   user?: {
     obfuscation_credits: number;
+    unlimited_obfuscation_credits?: boolean;
   };
 };
 
@@ -114,6 +115,8 @@ export default function Credits() {
 
   const available = session?.user?.obfuscation_credits ?? 0;
   const owner = session?.ownerBypass === true;
+  const unlimited = session?.user?.unlimited_obfuscation_credits === true;
+  const free = owner || unlimited;
 
   return (
     <>
@@ -125,9 +128,9 @@ export default function Credits() {
         </div>
 
         {session?.authenticated ? (
-          <button className="primaryBtn" disabled={busy} onClick={getCredit}>
+          <button className="primaryBtn" disabled={busy || free} onClick={getCredit}>
             {busy ? <Loader2 size={14} className="spin"/> : <Plus size={14}/>}
-            {owner ? "Owner bypass active" : "Get 1 credit"}
+            {owner ? "Owner bypass active" : unlimited ? "Unlimited credits" : "Get 1 credit"}
           </button>
         ) : (
           <Link className="primaryBtn" href="/login">Sign in</Link>
@@ -139,14 +142,14 @@ export default function Credits() {
       <div className="statGrid">
         <div className="statCard">
           <span>Available</span>
-          <strong>{owner ? "∞" : available}</strong>
-          <small>{owner ? "Owner bypass" : "Ready to use"}</small>
+          <strong>{free ? "∞" : available}</strong>
+          <small>{owner ? "Owner bypass" : unlimited ? "Unlimited access" : "Ready to use"}</small>
         </div>
 
         <div className="statCard">
           <span>Reward</span>
-          <strong>{owner ? <ShieldCheck size={21}/> : <Coins size={21}/>}</strong>
-          <small>{owner ? "No credits consumed" : "1 LootLabs completion = 1 credit"}</small>
+          <strong>{free ? <ShieldCheck size={21}/> : <Coins size={21}/>}</strong>
+          <small>{free ? "No credits consumed" : "1 LootLabs completion = 1 credit"}</small>
         </div>
 
         <div className="statCard">
@@ -157,7 +160,7 @@ export default function Credits() {
 
         <div className="statCard">
           <span>Cost</span>
-          <strong>{owner ? "0" : "1"}</strong>
+          <strong>{free ? "0" : "1"}</strong>
           <small>credit per successful build</small>
         </div>
       </div>

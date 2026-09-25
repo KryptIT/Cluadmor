@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url text,
   obfuscation_credits integer NOT NULL DEFAULT 0 CHECK (obfuscation_credits >= 0),
   service_creation_credits integer NOT NULL DEFAULT 0 CHECK (service_creation_credits >= 0),
+  unlimited_obfuscation_credits boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 

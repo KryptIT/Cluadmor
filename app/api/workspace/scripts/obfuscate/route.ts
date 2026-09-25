@@ -56,7 +56,16 @@ export async function POST(req: Request) {
 
   let charged = false;
 
-  if (!identity.bypassRewards) {
+  const entitlementRows = await sql`
+    SELECT unlimited_obfuscation_credits
+    FROM users
+    WHERE id = ${identity.userId}
+    LIMIT 1
+  `;
+
+  const unlimitedCredit = !!(entitlementRows[0] as any)?.unlimited_obfuscation_credits;
+
+  if (!identity.bypassRewards && !unlimitedCredit) {
     const debit = await sql`
       UPDATE users
       SET obfuscation_credits = obfuscation_credits - 1
@@ -103,6 +112,7 @@ export async function POST(req: Request) {
   return noStoreJson({
     ok: true,
     output: result.output,
-    bypassedCredit: identity.bypassRewards
+    bypassedCredit: identity.bypassRewards || unlimitedCredit,
+    unlimitedCredit
   });
 }
