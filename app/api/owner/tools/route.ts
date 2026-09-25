@@ -68,6 +68,93 @@ export async function POST(req: Request) {
 
   const action = String(body.action || "");
 
+  if (action === "reobfuscate_all_users_scripts") {
+    const rows = await sql`
+      SELECT
+        ss.id,
+        ss.name,
+        ss.service_id,
+        ss.source_ciphertext,
+        ss.obfuscation_preset,
+        s.owner_id,
+        u.email AS owner_email,
+        u.username AS owner_username
+      FROM service_scripts ss
+      JOIN services s ON s.id = ss.service_id
+      JOIN users u ON u.id = s.owner_id
+      ORDER BY ss.created_at ASC
+    `;
+
+    const results = await mapLimit(rows as any[], 3, async script => {
+      try {
+        const raw = decryptConfig(script.source_ciphertext) as { source?: string };
+        const source = String(raw.source || "");
+
+        if (!source) {
+          return {
+            id: script.id,
+            name: script.name,
+            ownerId: script.owner_id,
+            owner: script.owner_email || script.owner_username || script.owner_id,
+            ok: false,
+            error: "empty_source"
+          };
+        }
+
+        const result = await runClaudium(
+          buildGuard(String(script.service_id), source),
+          String(script.obfuscation_preset || "executor"),
+          true
+        );
+
+        if (!result.ok) {
+          return {
+            id: script.id,
+            name: script.name,
+            ownerId: script.owner_id,
+            owner: script.owner_email || script.owner_username || script.owner_id,
+            ok: false,
+            error: result.error,
+            detail: result.detail || null
+          };
+        }
+
+        await sql`
+          UPDATE service_scripts
+          SET obfuscated_ciphertext = ${encryptConfig({ source: result.output })},
+              obfuscated_at = now()
+          WHERE id = ${script.id}
+        `;
+
+        return {
+          id: script.id,
+          name: script.name,
+          ownerId: script.owner_id,
+          owner: script.owner_email || script.owner_username || script.owner_id,
+          ok: true
+        };
+      } catch (error) {
+        return {
+          id: script.id,
+          name: script.name,
+          ownerId: script.owner_id,
+          owner: script.owner_email || script.owner_username || script.owner_id,
+          ok: false,
+          error: error instanceof Error ? error.message : "unknown_error"
+        };
+      }
+    });
+
+    return noStoreJson({
+      ok: true,
+      action,
+      scope: "all_users",
+      total: results.length,
+      succeeded: results.filter((x: any) => x.ok).length,
+      failed: results.filter((x: any) => !x.ok)
+    });
+  }
+
   if (action === "reobfuscate_all_scripts") {
     const rows = await sql`
       SELECT ss.id, ss.name, ss.service_id, ss.source_ciphertext,

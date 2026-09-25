@@ -225,20 +225,37 @@ export default function OwnerToolsPage() {
 
           <div className="settingsBody">
             <p>
-              Rebuild every saved script in your workspace with the current
-              Claudium backend and anti-tamper enabled.
+              Rebuild saved scripts with the current Claudium backend and
+              anti-tamper enabled.
             </p>
 
-            <button
-              className="primaryBtn"
-              disabled={busy !== ""}
-              onClick={() => runAction("reobfuscate_all_scripts")}
-            >
-              {busy === "reobfuscate_all_scripts"
-                ? <Loader2 size={14} className="spin"/>
-                : <RefreshCcw size={14}/>}
-              Re-obfuscate all scripts
-            </button>
+            <div className="row">
+              <button
+                className="secondaryBtn"
+                disabled={busy !== ""}
+                onClick={() => runAction("reobfuscate_all_scripts")}
+              >
+                {busy === "reobfuscate_all_scripts"
+                  ? <Loader2 size={14} className="spin"/>
+                  : <RefreshCcw size={14}/>}
+                My scripts
+              </button>
+
+              <button
+                className="primaryBtn"
+                disabled={busy !== ""}
+                onClick={() => runAction("reobfuscate_all_users_scripts")}
+              >
+                {busy === "reobfuscate_all_users_scripts"
+                  ? <Loader2 size={14} className="spin"/>
+                  : <RefreshCcw size={14}/>}
+                All users' scripts
+              </button>
+            </div>
+
+            <small className="muted">
+              System-wide rebuild affects every saved Claudmor script.
+            </small>
           </div>
         </section>
 
