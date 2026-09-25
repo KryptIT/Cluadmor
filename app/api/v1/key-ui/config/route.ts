@@ -20,10 +20,26 @@ export async function GET(req: Request) {
     LIMIT 1
   `;
 
+  const providerRows = await sql`
+    SELECT provider, config
+    FROM service_providers
+    WHERE service_id = ${serviceId}
+      AND enabled = true
+      AND NULLIF(BTRIM(COALESCE(config->>'linkTemplate', '')), '') IS NOT NULL
+    ORDER BY priority ASC, updated_at DESC
+    LIMIT 1
+  `;
+
   const service = rows[0] as any;
   if (!service || !service.enabled) {
     return noStoreJson({ ok: false, error: "service_unavailable" }, 404);
   }
+
+  const provider = providerRows[0] as any;
+  const getKeyUrl =
+    provider && typeof provider.config?.linkTemplate === "string"
+      ? provider.config.linkTemplate.trim()
+      : "";
 
   return noStoreJson({
     ok: true,
@@ -31,6 +47,8 @@ export async function GET(req: Request) {
     keySystemEnabled: service.key_system_enabled !== false,
     customUiEnabled: service.key_ui_mode === "CUSTOM",
     keyUiMode: service.key_ui_mode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
-    libraryUrl: new URL("/sdk/library.lua", req.url).toString()
+    libraryUrl: new URL("/sdk/library.lua", req.url).toString(),
+    getKeyUrl: /^https?:\/\//i.test(getKeyUrl) ? getKeyUrl : "",
+    getKeyProvider: provider?.provider || null
   });
 }
