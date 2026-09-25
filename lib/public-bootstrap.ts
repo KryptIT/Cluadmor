@@ -113,7 +113,9 @@ do
     local okConfig, raw = pcall(httpGet, "${base}/api/v1/key-ui/config?serviceId=${serviceId}")
 
     if okConfig and type(raw) == "string" then
-        local okJson, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+        local okJson, decoded = pcall(function()
+            return HttpService:JSONDecode(raw)
+        end)
         if okJson and type(decoded) == "table" then
             config.keySystemEnabled = decoded.keySystemEnabled ~= false
             config.customUiEnabled = decoded.customUiEnabled == true
@@ -295,7 +297,9 @@ local function fetchProtectedLoader()
         }
     )
 
-    local okJson, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+    local okJson, decoded = pcall(function()
+            return HttpService:JSONDecode(raw)
+        end)
     if not okJson or type(decoded) ~= "table" then
         error("[Claudmor] invalid loader transport response", 0)
     end
