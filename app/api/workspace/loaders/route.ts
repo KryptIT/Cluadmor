@@ -83,8 +83,8 @@ export async function POST(req: Request) {
   const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
 
   const [loaderResult, bootstrapResult] = await Promise.all([
-    runClaudium(readableLoader, "executor", false),
-    runClaudium(readableBootstrap, "executor", false)
+    runClaudium(readableLoader, "executor", true),
+    runClaudium(readableBootstrap, "executor", true)
   ]);
 
   if (!loaderResult.ok) {
