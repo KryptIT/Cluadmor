@@ -329,6 +329,6 @@ if not chunk then
     error("[Claudmor] loader compile failed: " .. tostring(compileError), 0)
 end
 
-return chunk()
+return chunk(compiler)
 `;
 }
