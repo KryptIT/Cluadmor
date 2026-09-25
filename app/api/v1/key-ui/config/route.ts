@@ -36,10 +36,12 @@ export async function GET(req: Request) {
   }
 
   const provider = providerRows[0] as any;
-  const getKeyUrl =
-    provider && typeof provider.config?.linkTemplate === "string"
-      ? provider.config.linkTemplate.trim()
-      : "";
+  const getKeyUrl = provider
+    ? new URL(
+        `/api/v1/key-ui/get-key?serviceId=${encodeURIComponent(serviceId)}`,
+        req.url
+      ).toString()
+    : "";
 
   return noStoreJson({
     ok: true,
@@ -48,7 +50,7 @@ export async function GET(req: Request) {
     customUiEnabled: service.key_ui_mode === "CUSTOM",
     keyUiMode: service.key_ui_mode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
     libraryUrl: new URL("/sdk/library.lua", req.url).toString(),
-    getKeyUrl: /^https?:\/\//i.test(getKeyUrl) ? getKeyUrl : "",
+    getKeyUrl,
     getKeyProvider: provider?.provider || null
   });
 }
