@@ -74,7 +74,7 @@ export async function claudiumHealth() {
   }
 }
 
-export async function runClaudium(source: string, preset = "executor", antiTamper = true): Promise<ClaudiumResult> {
+export async function runClaudium(source: string, preset = "executor", antiTamper = false): Promise<ClaudiumResult> {
   const url = endpoint();
   const secret = (process.env.CLAUDIUM_INTERNAL_SECRET || "").trim();
 
