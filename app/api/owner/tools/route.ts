@@ -103,7 +103,7 @@ export async function POST(req: Request) {
         const result = await runClaudium(
           buildGuard(String(script.service_id), source),
           String(script.obfuscation_preset || "executor"),
-          true
+          false
         );
 
         if (!result.ok) {
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
         const result = await runClaudium(
           buildGuard(String(script.service_id), source),
           String(script.obfuscation_preset || "executor"),
-          true
+          false
         );
 
         if (!result.ok) {
