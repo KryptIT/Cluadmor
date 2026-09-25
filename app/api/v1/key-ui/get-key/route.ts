@@ -20,13 +20,14 @@ function appendLootLabsData(base: string, encrypted: string) {
 }
 
 function errorPage(message: string, status = 500) {
-  const safe = message.replace(/[&<>"']/g, ch => ({
+  const entities: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
     "'": "&#39;"
-  }[ch] || ch));
+  };
+  const safe = message.replace(/[&<>"']/g, ch => entities[ch] || ch);
 
   return new Response(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Claudmor</title></head><body style="margin:0;background:#07090b;color:#e7f1f3;font:14px system-ui;display:grid;place-items:center;min-height:100vh"><div style="max-width:560px;padding:28px;border:1px solid #183b42;border-radius:14px;background:#0b1013"><b>Could not create key link</b><p style="color:#9fb1b5">${safe}</p></div></body></html>`,
