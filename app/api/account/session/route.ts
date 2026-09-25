@@ -1,4 +1,5 @@
 import { accountFromRequest, clearAccountCookie } from "@/lib/account";
+import { isAccountBlacklisted } from "@/lib/blacklist";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { sql } from "@/lib/db";
 import { noStoreJson } from "@/lib/security";
@@ -9,26 +10,35 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   await ensureWorkspaceSchema();
+
   const account = accountFromRequest(req);
   const owner = ownerFromRequest(req);
 
-  if (!account) return noStoreJson({ ok: true, authenticated: false, ownerBypass: owner });
+  if (!account) {
+    return noStoreJson({ ok: true, authenticated: false, ownerBypass: owner });
+  }
+
+  if (await isAccountBlacklisted(account.userId)) {
+    return noStoreJson({
+      ok: true,
+      authenticated: false,
+      ownerBypass: false,
+      blocked: true,
+      reason: "blacklisted_account"
+    });
+  }
 
   const rows = await sql`
-    SELECT
-      id,
-      username,
-      display_name,
-      avatar_url,
-      email,
-      obfuscation_credits,
-      service_creation_credits
+    SELECT id, username, display_name, avatar_url, email,
+           obfuscation_credits, service_creation_credits
     FROM users
     WHERE id = ${account.userId}
     LIMIT 1
   `;
 
-  if (!rows[0]) return noStoreJson({ ok: true, authenticated: false, ownerBypass: owner });
+  if (!rows[0]) {
+    return noStoreJson({ ok: true, authenticated: false, ownerBypass: owner });
+  }
 
   return noStoreJson({
     ok: true,

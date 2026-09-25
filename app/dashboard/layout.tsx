@@ -16,7 +16,8 @@ import {
   Route,
   FileText,
   Activity,
-  Menu
+  Menu,
+  ShieldAlert
 } from "lucide-react";
 
 const groups = [
@@ -44,7 +45,8 @@ const groups = [
     label: "Developer",
     items: [
       { label: "Webhooks", href: "/dashboard/webhooks", icon: Webhook },
-      { label: "API keys", href: "/dashboard/api-keys", icon: Key }
+      { label: "API keys", href: "/dashboard/api-keys", icon: Key },
+      { label: "Owner tools", href: "/dashboard/owner", icon: ShieldAlert }
     ]
   }
 ];
@@ -53,10 +55,17 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
   return (
     <>
       {groups.map(group => (
-        <div className={mobile ? "mobileNavGroup" : "navGroup"} key={group.label}>
-          <div className={mobile ? "mobileNavLabel" : "navLabel"}>{group.label}</div>
+        <div
+          className={mobile ? "mobileNavGroup" : "navGroup"}
+          key={group.label}
+        >
+          <div className={mobile ? "mobileNavLabel" : "navLabel"}>
+            {group.label}
+          </div>
+
           {group.items.map(item => {
             const Icon = item.icon;
+
             return (
               <Link
                 key={item.href}
@@ -74,7 +83,11 @@ function Navigation({ mobile = false }: { mobile?: boolean }) {
   );
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children
+}: {
+  children: React.ReactNode
+}) {
   return (
     <div className="dash">
       <aside className="sidebar">
@@ -94,7 +107,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">
             Discord updates <ExternalLink size={13} />
           </a>
-          <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">
+
+          <a
+            href="https://guns.lol/larpcorrupted"
+            target="_blank"
+            rel="noreferrer"
+          >
             larpcorrupted <ExternalLink size={13} />
           </a>
         </div>
@@ -121,10 +139,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </nav>
 
               <div className="mobileMenuLinks">
-                <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">
+                <a
+                  href="https://dsc.gg/oxyenv"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Discord updates <ExternalLink size={14} />
                 </a>
-                <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">
+
+                <a
+                  href="https://guns.lol/larpcorrupted"
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   larpcorrupted <ExternalLink size={14} />
                 </a>
               </div>
@@ -134,8 +161,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="crumb">Claudmor / dashboard</div>
 
           <div className="topActions">
-            <button className="searchBtn"><Search size={15} /> Search <kbd>Ctrl K</kbd></button>
-            <Link href="/dashboard/credits" className="creditBtn"><Coins size={15} /> Credits</Link>
+            <button className="searchBtn">
+              <Search size={15} /> Search <kbd>Ctrl K</kbd>
+            </button>
+
+            <Link href="/dashboard/credits" className="creditBtn">
+              <Coins size={15} /> Credits
+            </Link>
           </div>
         </header>
 
