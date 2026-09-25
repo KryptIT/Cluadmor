@@ -190,29 +190,42 @@ export async function POST(req: Request) {
       return responseFor(req, "key_check_failed: expired_key", 401);
     }
 
-    if (key.hwid_hash && key.hwid_hash !== hwidHash) {
-      return responseFor(req, "hwid_check_failed: hwid_mismatch", 403);
-    }
-
-    if (key.roblox_user_id && String(key.roblox_user_id) !== String(body.robloxUserId || "")) {
-      return responseFor(req, "roblox_user_id_check_failed: mismatch", 403);
-    }
-
-    if (
-      key.roblox_username &&
-      String(key.roblox_username).toLowerCase() !== String(body.robloxUsername || "").toLowerCase()
-    ) {
-      return responseFor(req, "roblox_username_check_failed: mismatch", 403);
-    }
-
-    if (!key.hwid_hash || !key.roblox_user_id || !key.roblox_username) {
+    if (!key.hwid_hash) {
       await sql`
         UPDATE license_keys
-        SET hwid_hash = COALESCE(hwid_hash, ${hwidHash}),
-            roblox_user_id = COALESCE(roblox_user_id, ${String(body.robloxUserId || "")}),
-            roblox_username = COALESCE(roblox_username, ${String(body.robloxUsername || "")})
+        SET hwid_hash = ${hwidHash},
+            roblox_user_id = ${String(body.robloxUserId || "")},
+            roblox_username = ${String(body.robloxUsername || "")}
         WHERE id = ${key.id}
       `;
+
+      key.hwid_hash = hwidHash;
+      key.roblox_user_id = String(body.robloxUserId || "");
+      key.roblox_username = String(body.robloxUsername || "");
+    } else {
+      if (key.hwid_hash !== hwidHash) {
+        return responseFor(req, "hwid_check_failed: hwid_mismatch", 403);
+      }
+
+      if (key.roblox_user_id && String(key.roblox_user_id) !== String(body.robloxUserId || "")) {
+        return responseFor(req, "roblox_user_id_check_failed: mismatch", 403);
+      }
+
+      if (
+        key.roblox_username &&
+        String(key.roblox_username).toLowerCase() !== String(body.robloxUsername || "").toLowerCase()
+      ) {
+        return responseFor(req, "roblox_username_check_failed: mismatch", 403);
+      }
+
+      if (!key.roblox_user_id || !key.roblox_username) {
+        await sql`
+          UPDATE license_keys
+          SET roblox_user_id = COALESCE(roblox_user_id, ${String(body.robloxUserId || "")}),
+              roblox_username = COALESCE(roblox_username, ${String(body.robloxUsername || "")})
+          WHERE id = ${key.id}
+        `;
+      }
     }
 
     if (service.require_discord_user_id && String(key.discord_user_id || "") !== String(body.discordUserId || "")) {
