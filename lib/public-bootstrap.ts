@@ -104,7 +104,9 @@ end
 local config = {
     keySystemEnabled = true,
     customUiEnabled = false,
-    serviceName = "Claudmor"
+    serviceName = "Claudmor",
+    getKeyUrl = "",
+    getKeyProvider = nil
 }
 
 do
@@ -116,6 +118,8 @@ do
             config.keySystemEnabled = decoded.keySystemEnabled ~= false
             config.customUiEnabled = decoded.customUiEnabled == true
             config.serviceName = tostring(decoded.serviceName or "Claudmor")
+            config.getKeyUrl = type(decoded.getKeyUrl) == "string" and decoded.getKeyUrl or ""
+            config.getKeyProvider = type(decoded.getKeyProvider) == "string" and decoded.getKeyProvider or nil
         end
     end
 end
@@ -201,7 +205,9 @@ local function promptKey(message, force, existingKey)
         errorText = message,
         force = force == true,
         remember = true,
-        initialValue = saved
+        initialValue = saved,
+        getKeyUrl = config.getKeyUrl,
+        getKeyProvider = config.getKeyProvider
     })
 end
 
