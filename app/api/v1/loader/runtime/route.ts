@@ -2,6 +2,7 @@ import { decryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { clientIp, digest, normalizeHwid } from "@/lib/security";
+import { recordTelemetry, tooManyKeyFailures } from "@/lib/telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +83,11 @@ export async function POST(req: Request) {
 
   const hwidHash = digest(normalizeHwid(body.hwid));
   const keyHash = digest(body.key);
+  const ipHash = digest(clientIp(req.headers));
+
+  if (await tooManyKeyFailures(ipHash)) {
+    return text("rate_limited", 429);
+  }
 
   const keys = await sql`
     SELECT
@@ -99,6 +105,16 @@ export async function POST(req: Request) {
   `;
 
   const key = keys[0] as any;
+
+  if (!key) {
+    await recordTelemetry({
+      serviceId: service.id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash,
+      reason: "invalid_key"
+    });
+  }
 
   if (
     !key ||
@@ -172,7 +188,7 @@ export async function POST(req: Request) {
       ${service.id},
       ${key.id},
       'LOADER_BOOTSTRAP',
-      ${digest(clientIp(req.headers))}
+      ${ipHash}
     )
   `;
 
