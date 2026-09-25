@@ -82,6 +82,7 @@ export async function POST(req: Request) {
   const readableLoader = buildLoader(origin, body.serviceId);
   const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
 
+  // Keep loader generation on the Luau preset for Roblox executor compatibility.
   const loaderResult = await runClaudium(readableLoader, "luau", true);
 
   if (!loaderResult.ok) {
