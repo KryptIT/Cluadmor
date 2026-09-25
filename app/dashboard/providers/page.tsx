@@ -179,7 +179,13 @@ export default function ProvidersPage() {
               <div className="providerForm providerFormAlways">
                 {provider.fields.map(field => (
                   <label key={field}>
-                    {field === "apiKey" ? "API key / secret" : field === "publisherId" ? "Publisher ID" : "Link / template"}
+                    {field === "apiKey"
+                      ? "API key / secret"
+                      : field === "publisherId"
+                        ? "Publisher ID"
+                        : provider.id === "lootlabs"
+                          ? "Example LootLabs single link"
+                          : "Link / template"}
                     <input
                       className="input"
                       type={field === "apiKey" ? "password" : "text"}
@@ -189,6 +195,12 @@ export default function ProvidersPage() {
                     />
                   </label>
                 ))}
+
+                {provider.id === "lootlabs" && (
+                  <small className="muted">
+                    Claudmor uses this existing single link as the shell and replaces its destination dynamically with LootLabs Redirect API data. The link must belong to the same LootLabs account as the API key.
+                  </small>
+                )}
 
                 <label className="providerEnableRow">
                   <input
