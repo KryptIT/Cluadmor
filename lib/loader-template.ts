@@ -5,7 +5,8 @@ export function buildLoader(baseUrl: string, serviceId: string) {
 local Players = game:GetService("Players")
 local RbxAnalyticsService = game:GetService("RbxAnalyticsService")
 
-local ENV = _G
+local GLOBAL_ENV = type(_G) == "table" and _G or {}
+local ENV = GLOBAL_ENV
 if type(getgenv) == "function" then
     local okEnv, resolvedEnv = pcall(getgenv)
     if okEnv and type(resolvedEnv) == "table" then
@@ -16,7 +17,7 @@ local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
 
 local requestFn = rawget(ENV, "request")
 if type(requestFn) ~= "function" then
-    requestFn = rawget(_G, "request")
+    requestFn = rawget(GLOBAL_ENV, "request")
 end
 if type(requestFn) ~= "function" then
     requestFn = nil
@@ -108,8 +109,8 @@ local function getHwid()
     local probes = {
         ENV.gethwid,
         ENV.get_hwid,
-        rawget(_G, "gethwid"),
-        rawget(_G, "get_hwid")
+        rawget(GLOBAL_ENV, "gethwid"),
+        rawget(GLOBAL_ENV, "get_hwid")
     }
 
     for _, probe in ipairs(probes) do
