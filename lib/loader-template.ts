@@ -1,7 +1,10 @@
 export function buildLoader(baseUrl: string, serviceId: string) {
   const base = baseUrl.replace(/\/+$/, "");
 
-  return `local GLOBAL_ENV = type(_G) == "table" and _G or {}
+  return `if type(getgenv) == "function" then
+    getgenv().MESSAGE = "This is a claudmor message if you see this please stop :) dsc.gg/oxyenv"
+end
+local GLOBAL_ENV = type(_G) == "table" and _G or {}
 local ENV = GLOBAL_ENV
 if type(getgenv) == "function" then
     local okEnv, resolvedEnv = pcall(getgenv)

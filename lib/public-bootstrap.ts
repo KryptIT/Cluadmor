@@ -1,7 +1,10 @@
 export function buildPublicBootstrap(baseUrl: string, serviceId: string) {
   const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 
-  return `local HttpService = game:GetService("HttpService")
+  return `if type(getgenv) == "function" then
+    getgenv().MESSAGE = "This is a claudmor message if you see this please stop :) dsc.gg/oxyenv"
+end
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local RbxAnalyticsService = game:GetService("RbxAnalyticsService")
 
@@ -402,5 +405,8 @@ export function buildPublicLauncher(baseUrl: string, serviceId: string) {
   // Claudium only hides the second-stage URL. The public /l route captures the
   // executor's real loadstring before entering the VM and performs compilation
   // outside Claudium, avoiding RobloxScript-context loadstring on other executors.
-  return `return ${JSON.stringify(stageUrl)}`;
+  return `if type(getgenv) == "function" then
+    getgenv().MESSAGE = "This is a claudmor message if you see this please stop :) dsc.gg/oxyenv"
+end
+return ${JSON.stringify(stageUrl)}`;
 }
