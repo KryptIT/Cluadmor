@@ -9,7 +9,9 @@ export async function GET(req: Request) {
   await ensureWorkspaceSchema();
 
   const serviceId = new URL(req.url).searchParams.get("serviceId") || "";
-  if (!serviceId) return noStoreJson({ ok: false, error: "missing_service_id" }, 400);
+  if (!serviceId) {
+    return noStoreJson({ ok: false, error: "missing_service_id" }, 400);
+  }
 
   const rows = await sql`
     SELECT name, enabled, key_system_enabled, key_ui_mode
@@ -27,7 +29,8 @@ export async function GET(req: Request) {
     ok: true,
     serviceName: service.name,
     keySystemEnabled: service.key_system_enabled !== false,
+    customUiEnabled: service.key_ui_mode === "CUSTOM",
     keyUiMode: service.key_ui_mode === "CUSTOM" ? "CUSTOM" : "DEFAULT",
-    libraryUrl: new URL("/ui/keysystem.lua", req.url).toString()
+    libraryUrl: new URL("/sdk/library.lua", req.url).toString()
   });
 }

@@ -3,17 +3,21 @@
 import { Copy, KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
-const LIBRARY = 'local ClaudmorUI = loadstring(game:HttpGet("https://claudmor.vercel.app/ui/keysystem.lua"))()';
+const LIBRARY = 'local Claudmor = loadstring(game:HttpGet("https://claudmor.vercel.app/sdk/library.lua"))()';
 
 const CUSTOM = [
   LIBRARY,
   "",
-  "local key = ClaudmorUI.prompt({",
-  '    title = "My Script",',
-  '    description = "Enter your key to continue."',
-  "})",
+  'Claudmor.service = "YOUR_SERVICE_ID"',
   "",
-  "ClaudmorUI.setKey(key)",
+  "getgenv().CLAUDMOR_KEY_UI = function(context)",
+  "    return Claudmor.prompt({",
+  '        serviceId = context.serviceId,',
+  '        title = "My Script",',
+  '        description = "Enter your key to continue."',
+  "    })",
+  "end",
+  "",
   'loadstring(game:HttpGet("https://claudmor.vercel.app/l/YOUR_SERVICE_ID"))()'
 ].join("\n");
 
@@ -31,7 +35,7 @@ export default function KeyUiPage() {
         <div>
           <span className="muted">Key system</span>
           <h1>Key UI library</h1>
-          <p>Use Claudmor's default Roblox key window or build your own UI on top of the same library.</p>
+          <p>Default mode works from the normal one-line loader. Custom mode can override only the UI while Claudmor keeps verification and delivery server-side.</p>
         </div>
       </div>
 
@@ -41,7 +45,7 @@ export default function KeyUiPage() {
             <div><span className="iconBox"><ShieldCheck size={15}/></span><strong>Default UI</strong></div>
           </div>
           <div className="settingsBody">
-            <p>Set a service to <strong>Default UI</strong>. If SCRIPT_KEY is missing, the loader opens the Claudmor key window automatically and continues after the user submits a key.</p>
+            <p>No setup code is required. If no valid SCRIPT_KEY is available, Claudmor opens its key window automatically, remembers the verified key, and retries invalid keys without killing the loader.</p>
           </div>
         </section>
 
@@ -50,14 +54,14 @@ export default function KeyUiPage() {
             <div><span className="iconBox"><KeyRound size={15}/></span><strong>Custom UI</strong></div>
           </div>
           <div className="settingsBody">
-            <p>Set a service to <strong>Custom UI</strong>, then set SCRIPT_KEY from your own interface before running the loader.</p>
+            <p>Expose <code>getgenv().CLAUDMOR_KEY_UI</code> as a callback. If a custom callback is missing or fails, Claudmor falls back to the default UI instead of aborting.</p>
           </div>
         </section>
       </div>
 
       <section className="panelCard outputPanel">
         <div className="panelTitle">
-          <div><strong>Load the library</strong></div>
+          <div><strong>SDK library</strong></div>
           <button className="secondaryBtn" onClick={() => copy(LIBRARY)}><Copy size={13}/> Copy</button>
         </div>
         <code className="keyUiCode">{LIBRARY}</code>

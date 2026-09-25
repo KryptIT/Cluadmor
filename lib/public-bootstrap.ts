@@ -57,7 +57,7 @@ end
 
 local config = {
     keySystemEnabled = true,
-    keyUiMode = "DEFAULT",
+    customUiEnabled = false,
     serviceName = "Claudmor"
 }
 
@@ -81,41 +81,109 @@ do
             local okJson, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
             if okJson and type(decoded) == "table" then
                 config.keySystemEnabled = decoded.keySystemEnabled ~= false
-                config.keyUiMode = tostring(decoded.keyUiMode or "DEFAULT")
+                config.customUiEnabled = decoded.customUiEnabled == true
                 config.serviceName = tostring(decoded.serviceName or "Claudmor")
             end
         end
     end
 end
 
+local uiLibrary = nil
+
+local function getUiLibrary()
+    if uiLibrary then
+        return uiLibrary
+    end
+
+    local uiSource = game:HttpGet("${base}/sdk/library.lua")
+    local uiChunk, uiError = compiler(uiSource, "@Claudmor/key-ui")
+
+    if not uiChunk then
+        error("[Claudmor] key UI compile failed: " .. tostring(uiError), 0)
+    end
+
+    local ui = uiChunk()
+    if type(ui) ~= "table" or type(ui.prompt) ~= "function" then
+        error("[Claudmor] invalid key UI library", 0)
+    end
+
+    uiLibrary = ui
+    return uiLibrary
+end
+
+local function customKey()
+    if not config.customUiEnabled then
+        return nil
+    end
+
+    local custom = ENV.CLAUDMOR_KEY_UI
+
+    if type(custom) == "function" then
+        local ok, value = pcall(custom, {
+            serviceId = "${serviceId}",
+            serviceName = config.serviceName,
+            libraryUrl = "${base}/sdk/library.lua"
+        })
+        if ok and type(value) == "string" and value ~= "" then
+            return value
+        end
+    elseif type(custom) == "table" and type(custom.prompt) == "function" then
+        local ok, value = pcall(custom.prompt, custom, {
+            serviceId = "${serviceId}",
+            serviceName = config.serviceName
+        })
+        if ok and type(value) == "string" and value ~= "" then
+            return value
+        end
+    end
+
+    return nil
+end
+
+local function promptKey(message, force)
+    local value = customKey()
+    if type(value) == "string" and value ~= "" then
+        return value
+    end
+
+    local ui = getUiLibrary()
+
+    if force and type(ui.clearSavedKey) == "function" then
+        pcall(ui.clearSavedKey, "${serviceId}")
+    end
+
+    local saved = nil
+    if not force and type(ui.loadSavedKey) == "function" then
+        local ok, result = pcall(ui.loadSavedKey, "${serviceId}")
+        if ok and type(result) == "string" and result ~= "" then
+            saved = result
+        end
+    end
+
+    if saved then
+        return saved
+    end
+
+    return ui.prompt({
+        serviceId = "${serviceId}",
+        title = config.serviceName,
+        description = "Enter your access key to continue.",
+        errorText = message,
+        force = force == true,
+        remember = true
+    })
+end
+
 local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
 
 if config.keySystemEnabled and SCRIPT_KEY == "" then
-    if config.keyUiMode == "DEFAULT" then
-        local uiSource = game:HttpGet("${base}/ui/keysystem.lua")
-        local uiChunk, uiError = compiler(uiSource, "@Claudmor/key-ui")
-        if not uiChunk then
-            error("[Claudmor] key UI compile failed: " .. tostring(uiError), 0)
-        end
+    SCRIPT_KEY = promptKey(nil, false)
 
-        local ui = uiChunk()
-        if type(ui) ~= "table" or type(ui.prompt) ~= "function" then
-            error("[Claudmor] invalid key UI library", 0)
-        end
-
-        SCRIPT_KEY = ui.prompt({
-            title = config.serviceName,
-            description = "Enter your access key to continue."
-        })
-
-        if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
-            error("[Claudmor] key entry cancelled", 0)
-        end
-
-        ENV.SCRIPT_KEY = SCRIPT_KEY
-    else
-        error("[Claudmor] custom key UI must set getgenv().SCRIPT_KEY before running the loader", 0)
+    if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
+        error("[Claudmor] key entry cancelled", 0)
     end
+
+    ENV.SCRIPT_KEY = SCRIPT_KEY
 end
 
 local function getHwid()
@@ -156,30 +224,63 @@ while not player do
     player = Players.LocalPlayer
 end
 
-local response = requestFn({
-    Url = "${base}/api/v1/loader/runtime",
-    Method = "POST",
-    Headers = {
-        ["Content-Type"] = "application/json",
-        ["Accept"] = "text/plain",
-        ["X-Claudmor-Client"] = "executor",
-        ["X-Claudmor-Protocol"] = "1"
-    },
-    Body = HttpService:JSONEncode({
-        serviceId = "${serviceId}",
-        key = SCRIPT_KEY,
-        hwid = getHwid(),
-        robloxUserId = tostring(player.UserId),
-        robloxUsername = player.Name,
-        discordUserId = ENV.DISCORD_USER_ID and tostring(ENV.DISCORD_USER_ID) or nil
+local hwid = getHwid()
+
+local function fetchProtectedLoader()
+    return requestFn({
+        Url = "${base}/api/v1/loader/runtime",
+        Method = "POST",
+        Headers = {
+            ["Content-Type"] = "application/json",
+            ["Accept"] = "text/plain",
+            ["X-Claudmor-Client"] = "executor",
+            ["X-Claudmor-Protocol"] = "1"
+        },
+        Body = HttpService:JSONEncode({
+            serviceId = "${serviceId}",
+            key = SCRIPT_KEY,
+            hwid = hwid,
+            robloxUserId = tostring(player.UserId),
+            robloxUsername = player.Name,
+            discordUserId = ENV.DISCORD_USER_ID and tostring(ENV.DISCORD_USER_ID) or nil
+        })
     })
-})
+end
 
-local status = tonumber(response.StatusCode or response.Status or 0) or 0
-local source = response.Body or response.body or ""
+local source = nil
 
-if status < 200 or status >= 300 then
-    error("[Claudmor] loader request failed (" .. tostring(status) .. "): " .. tostring(source), 0)
+for attempt = 1, 5 do
+    local response = fetchProtectedLoader()
+    local status = tonumber(response.StatusCode or response.Status or 0) or 0
+    local body = response.Body or response.body or ""
+
+    if status >= 200 and status < 300 then
+        source = body
+
+        if config.keySystemEnabled and type(uiLibrary) == "table" and type(uiLibrary.saveKey) == "function" then
+            pcall(uiLibrary.saveKey, "${serviceId}", SCRIPT_KEY)
+        end
+
+        break
+    end
+
+    local keyFailure =
+        status == 401 or
+        body:find("key_check_failed", 1, true) ~= nil or
+        body:find("required_field_check_failed: key", 1, true) ~= nil
+
+    if config.keySystemEnabled and keyFailure and attempt < 5 then
+        ENV.SCRIPT_KEY = nil
+        SCRIPT_KEY = promptKey(body, true)
+
+        if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
+            error("[Claudmor] key entry cancelled", 0)
+        end
+
+        ENV.SCRIPT_KEY = SCRIPT_KEY
+    else
+        error("[Claudmor] loader request failed (" .. tostring(status) .. "): " .. tostring(body), 0)
+    end
 end
 
 if type(source) ~= "string" or source == "" then
