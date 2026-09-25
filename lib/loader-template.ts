@@ -24,31 +24,46 @@ local function useRequest(candidate, name)
     end
 end
 
-useRequest(ENV.request, "getgenv().request")
-useRequest(ENV.http_request, "getgenv().http_request")
-useRequest(rawget(_G, "request"), "_G.request")
-useRequest(rawget(_G, "http_request"), "_G.http_request")
+local function safeIndex(scope, key)
+    local ok, value = pcall(function()
+        return scope[key]
+    end)
+    if ok then
+        return value
+    end
+    return nil
+end
 
-local namespaces = {
-    {"syn", ENV.syn or rawget(_G, "syn")},
-    {"http", ENV.http or rawget(_G, "http")},
-    {"fluxus", ENV.fluxus or rawget(_G, "fluxus")},
-    {"krnl", ENV.krnl or rawget(_G, "krnl")},
-    {"delta", ENV.delta or rawget(_G, "delta")},
-    {"executor", ENV.executor or rawget(_G, "executor")}
+local function tryScope(scope, name)
+    if scope == nil then
+        return
+    end
+    useRequest(safeIndex(scope, "request"), name .. ".request")
+    useRequest(safeIndex(scope, "http_request"), name .. ".http_request")
+end
+
+tryScope(ENV, "getgenv()")
+tryScope(_G, "_G")
+
+local namespaceNames = {
+    "syn",
+    "http",
+    "fluxus",
+    "krnl",
+    "delta",
+    "executor"
 }
 
-for _, entry in ipairs(namespaces) do
-    local name = entry[1]
-    local scope = entry[2]
-    if type(scope) == "table" then
-        useRequest(scope.request, name .. ".request")
-        useRequest(scope.http_request, name .. ".http_request")
+for _, name in ipairs(namespaceNames) do
+    local scope = safeIndex(ENV, name)
+    if scope == nil then
+        scope = safeIndex(_G, name)
     end
+    tryScope(scope, name)
 end
 
 if not requestFn then
-    error("[Claudmor] executor request API is unavailable; checked getgenv().request, getgenv().http_request, _G.request, _G.http_request, syn.request, http.request, fluxus.request, krnl.request, delta.request, executor.request", 0)
+    error("[Claudmor] executor request API is unavailable after safe probing of getgenv(), _G, syn, http, fluxus, krnl, delta, executor", 0)
 end
 
 -- Captured before any network wait so a later swap of loadstring is not picked up.
