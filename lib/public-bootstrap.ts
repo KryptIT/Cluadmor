@@ -5,7 +5,13 @@ export function buildPublicBootstrap(baseUrl: string, serviceId: string) {
 local Players = game:GetService("Players")
 local RbxAnalyticsService = game:GetService("RbxAnalyticsService")
 
-local ENV = (getgenv and getgenv()) or _G
+local ENV = _G
+if type(getgenv) == "function" then
+    local okEnv, resolvedEnv = pcall(getgenv)
+    if okEnv and type(resolvedEnv) == "table" then
+        ENV = resolvedEnv
+    end
+end
 local SCRIPT_KEY = ENV.SCRIPT_KEY
 
 if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
