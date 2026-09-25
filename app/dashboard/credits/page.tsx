@@ -37,7 +37,7 @@ export default function Credits() {
     let stopped = false;
 
     (async () => {
-      for (let attempt = 0; attempt < 12 && !stopped; attempt++) {
+      for (let attempt = 0; attempt < 60 && !stopped; attempt++) {
         const res = await fetch(
           "/api/rewards/status?id=" + encodeURIComponent(rewardId),
           { cache: "no-store" }
@@ -65,7 +65,7 @@ export default function Credits() {
       }
 
       if (!stopped) {
-        setMessage("Waiting for the LootLabs completion postback. Refresh in a moment if the credit has not appeared yet.");
+        setMessage("LootLabs has not confirmed the completion yet. The page will keep your reward session safe; refresh in a moment if the credit still has not appeared.");
       }
     })();
 

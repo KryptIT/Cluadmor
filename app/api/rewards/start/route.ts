@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
+import { makeRewardClickId } from "@/lib/reward-click";
 import { noStoreJson } from "@/lib/security";
 import { workspaceIdentity } from "@/lib/workspace";
 
@@ -7,8 +8,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function withPuid(base: string, sessionId: string) {
-  const join = base.includes("?") ? "&" : "?";
-  return base + join + "puid=" + encodeURIComponent(sessionId);
+  const url = new URL(base);
+  url.searchParams.set("puid", makeRewardClickId(sessionId));
+  return url.toString();
 }
 
 async function expireSession(id: string) {
@@ -61,12 +63,6 @@ export async function POST(req: Request) {
   const session = sessions[0] as any;
   const sessionId = String(session.id);
 
-  /*
-   * Preferred mode:
-   * Create one LootLabs link in the LootLabs dashboard and put the resulting
-   * loot-link.com URL in LOOTLABS_REWARD_URL. Claudmor only appends ?puid=...
-   * for each reward session.
-   */
   const configuredRewardUrl = (process.env.LOOTLABS_REWARD_URL || "").trim();
 
   if (configuredRewardUrl) {
@@ -75,7 +71,7 @@ export async function POST(req: Request) {
       return noStoreJson({
         ok: false,
         error: "lootlabs_reward_url_invalid",
-        detail: "LOOTLABS_REWARD_URL must be a full https:// LootLabs link."
+        detail: "The configured LootLabs reward URL is invalid."
       }, 503);
     }
 
@@ -88,10 +84,6 @@ export async function POST(req: Request) {
     });
   }
 
-  /*
-   * Fallback mode:
-   * Dynamically create a link through LootLabs' public content_locker API.
-   */
   const token = (process.env.LOOTLABS_API_TOKEN || "").trim();
 
   if (!token) {
@@ -99,7 +91,7 @@ export async function POST(req: Request) {
     return noStoreJson({
       ok: false,
       error: "lootlabs_not_configured",
-      detail: "Set LOOTLABS_REWARD_URL or LOOTLABS_API_TOKEN."
+      detail: "LootLabs rewards are not configured."
     }, 503);
   }
 

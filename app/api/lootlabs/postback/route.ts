@@ -1,5 +1,6 @@
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
+import { parseRewardClickId } from "@/lib/reward-click";
 import { clientIp, digest, noStoreJson } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -7,33 +8,56 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   await ensureWorkspaceSchema();
+
   const url = new URL(req.url);
-  const configuredSecret = process.env.LOOTLABS_POSTBACK_SECRET || "";
+  const rawClickId =
+    url.searchParams.get("click_id") ||
+    url.searchParams.get("clickId") ||
+    url.searchParams.get("CLICK_ID") ||
+    "";
 
-  if (configuredSecret) {
-    const got = url.searchParams.get("secret") || "";
-    if (got !== configuredSecret) return noStoreJson({ ok: false, error: "unauthorized" }, 401);
+  if (!rawClickId) {
+    return noStoreJson({ ok: false, error: "missing_click_id" }, 400);
   }
 
-  const clickId = url.searchParams.get("click_id") || "";
-  const uniqueId = url.searchParams.get("unique_id") || "";
-  const suppliedIp = url.searchParams.get("ip") || clientIp(req.headers);
+  let sessionId = parseRewardClickId(rawClickId);
+  let signed = !!sessionId;
 
-  if (!clickId || !uniqueId) {
-    return noStoreJson({ ok: false, error: "missing_fields" }, 400);
+  if (!sessionId) {
+    const configuredSecret = (process.env.LOOTLABS_POSTBACK_SECRET || "").trim();
+    const suppliedSecret = url.searchParams.get("secret") || "";
+
+    if (!configuredSecret || suppliedSecret !== configuredSecret) {
+      return noStoreJson({ ok: false, error: "unauthorized" }, 401);
+    }
+
+    sessionId = rawClickId;
   }
+
+  const suppliedIp =
+    url.searchParams.get("ip") ||
+    url.searchParams.get("IP") ||
+    clientIp(req.headers);
+
+  const suppliedUniqueId =
+    url.searchParams.get("unique_id") ||
+    url.searchParams.get("uniqueId") ||
+    url.searchParams.get("UNIQUE_ID") ||
+    "";
+
+  const uniqueId = suppliedUniqueId || `fallback_${digest(rawClickId + ":" + suppliedIp)}`;
 
   const completed = await sql`
     WITH valid AS (
       SELECT id, user_id, reward_type
       FROM reward_sessions
-      WHERE id = ${clickId}
+      WHERE id = ${sessionId}
         AND status = 'PENDING'
         AND expires_at > now()
     ),
     inserted AS (
       INSERT INTO lootlabs_completions(reward_session_id, unique_id, click_id, ip_hash)
-      SELECT id, ${uniqueId}, ${clickId}, ${digest(suppliedIp)}
+      SELECT id, ${uniqueId}, ${rawClickId}, ${digest(suppliedIp)}
       FROM valid
       ON CONFLICT (unique_id) DO NOTHING
       RETURNING reward_session_id
@@ -50,7 +74,12 @@ export async function GET(req: Request) {
   `;
 
   if (!completed[0]) {
-    return noStoreJson({ ok: true, credited: false });
+    return noStoreJson({
+      ok: true,
+      credited: false,
+      signed,
+      reason: "already_completed_expired_or_unknown"
+    });
   }
 
   const reward = completed[0] as any;
@@ -69,5 +98,10 @@ export async function GET(req: Request) {
     `;
   }
 
-  return noStoreJson({ ok: true, credited: true, type: reward.reward_type });
+  return noStoreJson({
+    ok: true,
+    credited: true,
+    signed,
+    type: reward.reward_type
+  });
 }
