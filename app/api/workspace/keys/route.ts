@@ -45,9 +45,6 @@ export async function POST(req: Request) {
   let body: {
     serviceId?: string;
     expiresAt?: string | null;
-    robloxUserId?: string | null;
-    robloxUsername?: string | null;
-    discordUserId?: string | null;
   };
 
   try { body = await req.json(); }
@@ -65,14 +62,15 @@ export async function POST(req: Request) {
   const key = opaque("CLM", 24);
   const rows = await sql`
     INSERT INTO license_keys(
-      service_id, key_hash, roblox_user_id, roblox_username, discord_user_id, expires_at
+      service_id, key_hash, hwid_hash, roblox_user_id, roblox_username, discord_user_id, expires_at
     )
     VALUES (
       ${body.serviceId},
       ${digest(key)},
-      ${body.robloxUserId || null},
-      ${body.robloxUsername || null},
-      ${body.discordUserId || null},
+      NULL,
+      NULL,
+      NULL,
+      NULL,
       ${body.expiresAt || null}
     )
     RETURNING id, service_id, expires_at, created_at
