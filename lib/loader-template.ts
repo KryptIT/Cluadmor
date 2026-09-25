@@ -13,7 +13,24 @@ if type(getgenv) == "function" then
         ENV = resolvedEnv
     end
 end
-local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
+
+local function envGet(key)
+    if type(ENV) ~= "table" then
+        return nil
+    end
+    return ENV[key]
+end
+
+local function envSet(key, value)
+    if type(ENV) ~= "table" then
+        return false
+    end
+    ENV[key] = value
+    return true
+end
+
+local initialScriptKey = envGet("SCRIPT_KEY")
+local SCRIPT_KEY = type(initialScriptKey) == "string" and initialScriptKey or ""
 
 local requestFn = type(request) == "function" and request or nil
 if type(requestFn) ~= "function" and type(http_request) == "function" then
@@ -95,13 +112,14 @@ local function post(path, body, headers)
 end
 
 local function getHwid()
-    if type(ENV.CLAUDMOR_HWID) == "string" and ENV.CLAUDMOR_HWID ~= "" then
-        return ENV.CLAUDMOR_HWID
+    local configuredHwid = envGet("CLAUDMOR_HWID")
+    if type(configuredHwid) == "string" and configuredHwid ~= "" then
+        return configuredHwid
     end
 
     local probes = {
-        ENV.gethwid,
-        ENV.get_hwid,
+        envGet("gethwid"),
+        envGet("get_hwid"),
         gethwid,
         get_hwid
     }
@@ -163,7 +181,7 @@ local auth = post("/api/v1/auth", {
     nonce = nonce,
     robloxUserId = tostring(player.UserId),
     robloxUsername = player.Name,
-    discordUserId = ENV.DISCORD_USER_ID and tostring(ENV.DISCORD_USER_ID) or nil
+    discordUserId = envGet("DISCORD_USER_ID") and tostring(envGet("DISCORD_USER_ID")) or nil
 })
 
 if type(auth.session) ~= "string" then
@@ -175,7 +193,7 @@ end
 -- is only set after the server has confirmed that the service is actually keyless.
 if auth.keySystemEnabled == false and SCRIPT_KEY == "" then
     SCRIPT_KEY = "__CLAUDMOR_KEYLESS_RUNTIME__"
-    ENV.SCRIPT_KEY = SCRIPT_KEY
+    envSet("SCRIPT_KEY", SCRIPT_KEY)
 end
 
 local ticket = post("/api/v1/bootstrap/ticket", {}, {
@@ -203,13 +221,13 @@ local guardSlot = type(delivery.guardSlot) == "string" and delivery.guardSlot or
 
 local function setMarkers(on)
     if guardSlot then
-        ENV[guardSlot] = on and delivery.deliveryToken or nil
+        envSet(guardSlot, on and delivery.deliveryToken or nil)
     else
-        ENV.__CLAUDMOR_DELIVERY = on and delivery.deliveryToken or nil
+        envSet("__CLAUDMOR_DELIVERY", on and delivery.deliveryToken or nil)
     end
     -- Scripts built by the obfuscate route carry their own guard that checks these two.
-    ENV.__CLAUDMOR_AUTHORIZED = on or nil
-    ENV.__CLAUDMOR_SERVICE = on and "${serviceId}" or nil
+    envSet("__CLAUDMOR_AUTHORIZED", on or nil)
+    envSet("__CLAUDMOR_SERVICE", on and "${serviceId}" or nil)
 end
 
 -- Keeps the runtime session alive with a rotating token; when the server ends the session
@@ -231,7 +249,7 @@ if type(heartbeat) == "table" and type(heartbeat.token) == "string" and type(hea
 
             if not okBeat or type(beat) ~= "table" or beat.ok ~= true or type(beat.token) ~= "string" then
                 setMarkers(false)
-                ENV.__CLAUDMOR_SESSION_ENDED = true
+                envSet("__CLAUDMOR_SESSION_ENDED", true)
                 break
             end
 
