@@ -89,8 +89,26 @@ CREATE TABLE IF NOT EXISTS bootstrap_tickets (
   key_id uuid NOT NULL REFERENCES license_keys(id) ON DELETE CASCADE,
   ticket_hash text NOT NULL UNIQUE,
   hwid_hash text NOT NULL,
+  session_jti text UNIQUE,
+  client_nonce_hash text,
   expires_at timestamptz NOT NULL,
   consumed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS runtime_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  key_id uuid NOT NULL REFERENCES license_keys(id) ON DELETE CASCADE,
+  hwid_hash text NOT NULL,
+  client_nonce_hash text,
+  token_hash text NOT NULL UNIQUE,
+  watermark text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  revoked_at timestamptz,
+  revoke_reason text,
+  last_beat_at timestamptz,
+  beat_count integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -169,6 +187,8 @@ CREATE INDEX IF NOT EXISTS idx_keys_service ON license_keys(service_id);
 CREATE INDEX IF NOT EXISTS idx_scripts_service ON service_scripts(service_id);
 CREATE INDEX IF NOT EXISTS idx_script_routes_service ON script_routes(service_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_expiry ON bootstrap_tickets(expires_at);
+CREATE INDEX IF NOT EXISTS idx_runtime_sessions_key ON runtime_sessions(key_id);
+CREATE INDEX IF NOT EXISTS idx_runtime_sessions_expiry ON runtime_sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_rewards_user ON reward_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_service_providers_service ON service_providers(service_id);
 
