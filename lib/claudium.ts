@@ -30,14 +30,14 @@ function makeRoutedGuardVmSafe(source: string) {
   const suffixAt = serviceEnd + '" then error("[Claudmor] invalid service", 0) end\n'.length;
   const userSource = source.slice(suffixAt);
 
-  // Keep the embedded authorization checks, but use direct globals only.
-  // Claudium's VM has shown register/type corruption on the old getgenv + table
-  // member guard, turning __cm/key operands into booleans on valid Roblox runs.
-  return [
-    'if __CLAUDMOR_AUTHORIZED ~= true then error("[Claudmor] unauthorized execution", 0) end',
-    'if __CLAUDMOR_SERVICE ~= "' + serviceId + '" then error("[Claudmor] invalid service", 0) end',
-    userSource
-  ].join("\n");
+  // Do not virtualize Claudmor's authorization guard at all. The delivery
+  // endpoint already prepends the authenticated one-time token/key/place/expiry
+  // guard outside the Claudium VM. Keeping a second guard inside the VM caused
+  // Roblox executor crashes even when the user's script was only print("hi").
+  // Returning only the user's source means anti-tamper now protects the actual
+  // script instead of also virtualizing executor/environment guard accesses.
+  void serviceId;
+  return userSource;
 }
 
 function rawBaseUrl() {
