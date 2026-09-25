@@ -151,25 +151,21 @@ local hwid = getHwid()
 -- Fresh random nonce per run; the server binds this run's session and ticket to it,
 -- so a captured request sequence cannot be replayed without it.
 local function makeNonce()
-    local rng = Random.new(tick() + os.clock() * 1e6)
     local parts = {
-        (HttpService:GenerateGUID(false):gsub("-", ""))
+        HttpService:GenerateGUID(false):gsub("-", ""),
+        HttpService:GenerateGUID(false):gsub("-", ""),
+        tostring(os.time())
     }
 
-    local seeds = {
-        os.time(),
-        math.floor(tick() * 1000) % 0x7fffffff,
-        math.floor(os.clock() * 1e6) % 0x7fffffff
-    }
-    for _, seed in ipairs(seeds) do
-        table.insert(parts, string.format("%08x", seed))
+    local okTime, serverTime = pcall(function()
+        return workspace:GetServerTimeNow()
+    end)
+
+    if okTime then
+        table.insert(parts, tostring(serverTime))
     end
 
-    for _ = 1, 4 do
-        table.insert(parts, string.format("%08x", rng:NextInteger(0, 0x7fffffff)))
-    end
-
-    return table.concat(parts)
+    return table.concat(parts, "")
 end
 
 local nonce = makeNonce()
