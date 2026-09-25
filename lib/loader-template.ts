@@ -84,7 +84,9 @@ local function post(path, body, headers)
         error("[Claudmor] request failed (" .. tostring(status) .. "): " .. tostring(detail), 0)
     end
 
-    local ok, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+    local ok, decoded = pcall(function()
+            return HttpService:JSONDecode(raw)
+        end)
     if not ok or type(decoded) ~= "table" then
         error("[Claudmor] invalid server response", 0)
     end
