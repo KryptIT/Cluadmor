@@ -185,14 +185,14 @@ local function promptKey(message, force, existingKey)
     local ui = getUiLibrary()
 
     if force and type(ui.clearSavedKey) == "function" then
-        pcall(ui.clearSavedKey, "${serviceId}")
+        pcall(ui.clearSavedKey, config.serviceName)
     end
 
     local saved = nil
     if type(existingKey) == "string" and existingKey ~= "" then
         saved = existingKey
     elseif not force and type(ui.loadSavedKey) == "function" then
-        local ok, result = pcall(ui.loadSavedKey, "${serviceId}")
+        local ok, result = pcall(ui.loadSavedKey, config.serviceName)
         if ok and type(result) == "string" and result ~= "" then
             saved = result
         end
@@ -212,9 +212,22 @@ local function promptKey(message, force, existingKey)
 end
 
 local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
+local keyCameFromSavedFile = false
 
-if config.keySystemEnabled then
-    SCRIPT_KEY = promptKey(nil, false, SCRIPT_KEY)
+if config.keySystemEnabled and SCRIPT_KEY == "" then
+    local ui = getUiLibrary()
+    if type(ui.loadSavedKey) == "function" then
+        local okSaved, savedKey = pcall(ui.loadSavedKey, config.serviceName)
+        if okSaved and type(savedKey) == "string" and savedKey ~= "" then
+            SCRIPT_KEY = savedKey
+            keyCameFromSavedFile = true
+            ENV.SCRIPT_KEY = SCRIPT_KEY
+        end
+    end
+end
+
+if config.keySystemEnabled and SCRIPT_KEY == "" then
+    SCRIPT_KEY = promptKey(nil, false, nil)
 
     if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
         error("[Claudmor] key entry cancelled", 0)
@@ -298,8 +311,11 @@ for attempt = 1, 5 do
     if response.ok == true and type(response.source) == "string" then
         source = response.source
 
-        if config.keySystemEnabled and type(uiLibrary) == "table" and type(uiLibrary.saveKey) == "function" then
-            pcall(uiLibrary.saveKey, "${serviceId}", SCRIPT_KEY)
+        if config.keySystemEnabled then
+            local ui = uiLibrary or getUiLibrary()
+            if type(ui) == "table" and type(ui.saveKey) == "function" then
+                pcall(ui.saveKey, config.serviceName, SCRIPT_KEY)
+            end
         end
 
         break
@@ -314,6 +330,13 @@ for attempt = 1, 5 do
 
     if config.keySystemEnabled and keyFailure and attempt < 5 then
         ENV.SCRIPT_KEY = nil
+        if keyCameFromSavedFile then
+            local ui = uiLibrary or getUiLibrary()
+            if type(ui) == "table" and type(ui.clearSavedKey) == "function" then
+                pcall(ui.clearSavedKey, config.serviceName)
+            end
+            keyCameFromSavedFile = false
+        end
         SCRIPT_KEY = promptKey(body, true, nil)
 
         if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
