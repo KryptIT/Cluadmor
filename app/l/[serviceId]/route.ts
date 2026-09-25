@@ -59,5 +59,15 @@ export async function GET(
   const source = String(decoded.source || "");
   if (!source) return luaResponse("-- Claudmor bootstrap unavailable", 503);
 
-  return luaResponse(source, 200);
+  // Capture the executor compiler before Claudium's VM starts. The obfuscated
+  // launcher returns only the second-stage URL; compilation happens here,
+  // outside the VM, so Roblox's disabled RobloxScript loadstring is never used.
+  const wrapped = `local __cm_loadstring = loadstring
+local __cm_stage_url = (function()
+${source}
+end)()
+return __cm_loadstring(game:HttpGet(__cm_stage_url))()
+`;
+
+  return luaResponse(wrapped, 200);
 }

@@ -399,9 +399,8 @@ export function buildPublicLauncher(baseUrl: string, serviceId: string) {
   const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
   const stageUrl = `${base}/api/v1/bootstrap/client?serviceId=${encodeURIComponent(serviceId)}`;
 
-  // The obfuscated public launcher must not call loadstring from inside
-  // Claudium's VM. Some executors resolve that symbol to Roblox's disabled
-  // RobloxScript loadstring. Return the second-stage source instead; the user's
-  // outer executor loadstring compiles both stages.
-  return `return game:HttpGet(${JSON.stringify(stageUrl)})`;
+  // Claudium only hides the second-stage URL. The public /l route captures the
+  // executor's real loadstring before entering the VM and performs compilation
+  // outside Claudium, avoiding RobloxScript-context loadstring on other executors.
+  return `return ${JSON.stringify(stageUrl)}`;
 }

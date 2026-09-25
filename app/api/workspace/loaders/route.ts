@@ -36,7 +36,7 @@ function publicInfo(req: Request, serviceId: string) {
   const publicUrl = `${origin}/l/${serviceId}`;
   return {
     publicUrl,
-    oneLiner: `loadstring(loadstring(game:HttpGet("${publicUrl}"))())()`
+    oneLiner: `loadstring(game:HttpGet("${publicUrl}"))()`
   };
 }
 
