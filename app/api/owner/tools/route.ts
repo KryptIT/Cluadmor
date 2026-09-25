@@ -103,7 +103,7 @@ export async function POST(req: Request) {
         const result = await runClaudium(
           buildGuard(String(script.service_id), source),
           String(script.obfuscation_preset || "executor"),
-          false
+          true
         );
 
         if (!result.ok) {
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
         const result = await runClaudium(
           buildGuard(String(script.service_id), source),
           String(script.obfuscation_preset || "executor"),
-          false
+          true
         );
 
         if (!result.ok) {
@@ -240,8 +240,8 @@ export async function POST(req: Request) {
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
         const [loaderResult, bootstrapResult] = await Promise.all([
-          runClaudium(buildLoader(origin, String(service.id)), "executor", false),
-          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", false)
+          runClaudium(buildLoader(origin, String(service.id)), "executor", true),
+          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", true)
         ]);
 
         if (!loaderResult.ok) {
@@ -319,8 +319,8 @@ export async function POST(req: Request) {
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
         const [loaderResult, bootstrapResult] = await Promise.all([
-          runClaudium(buildLoader(origin, String(service.id)), "executor", false),
-          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", false)
+          runClaudium(buildLoader(origin, String(service.id)), "executor", true),
+          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", true)
         ]);
 
         if (!loaderResult.ok) {
