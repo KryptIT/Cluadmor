@@ -28,7 +28,7 @@ function deliveryGuard(
         : "";
 
   const keyCheck = keySystemEnabled
-    ? 'if type(__cm.SCRIPT_KEY) ~= "string" or __cm.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end\\n'
+    ? 'if type(__cm.SCRIPT_KEY) ~= "string" or __cm.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end\n'
     : "";
 
   return `local __cm = type(_G) == "table" and _G or {}
