@@ -1,3 +1,4 @@
+import { runClaudium } from "@/lib/claudium";
 import { encryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
@@ -81,6 +82,17 @@ export async function POST(req: Request) {
   const readableLoader = buildLoader(origin, body.serviceId);
   const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
 
+  const loaderResult = await runClaudium(readableLoader, "executor", true);
+
+  if (!loaderResult.ok) {
+    return noStoreJson({
+      ok: false,
+      error: loaderResult.error,
+      detail: loaderResult.detail || null,
+      upstreamStatus: loaderResult.status
+    }, loaderResult.status >= 400 && loaderResult.status < 600 ? loaderResult.status : 502);
+  }
+
   await sql`
     INSERT INTO service_loaders(
       service_id,
@@ -90,7 +102,7 @@ export async function POST(req: Request) {
     )
     VALUES (
       ${body.serviceId},
-      ${encryptConfig({ source: readableLoader })},
+      ${encryptConfig({ source: loaderResult.output })},
       ${encryptConfig({ source: readableBootstrap })},
       now()
     )
