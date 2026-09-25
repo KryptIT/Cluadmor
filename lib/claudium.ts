@@ -115,7 +115,7 @@ export async function claudiumHealth() {
 export async function runClaudium(source: string, preset = "executor", antiTamper = true): Promise<ClaudiumResult> {
   // Claudium's VM has repeatedly corrupted Roblox service/member access in the
   // internal runtime loader. Keep that small transport/auth loader readable;
-  // user scripts still go through the normal obfuscation path. Retry deployment after VM-safe guard fix.
+  // user scripts still go through the normal obfuscation path. Retry deployment after VM-safe guard fix again.
   if (isInternalLoaderSource(source)) {
     return { ok: true, output: source, raw: source };
   }
