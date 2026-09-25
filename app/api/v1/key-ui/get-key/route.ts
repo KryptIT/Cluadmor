@@ -111,7 +111,7 @@ export async function GET(req: Request) {
   `;
 
   const origin = new URL(req.url).origin;
-  const destination = new URL("/key/claim", origin);
+  const destination = new URL("/api/v1/key-ui/claim", origin);
   destination.searchParams.set("token", token);
 
   let upstream: Response;
