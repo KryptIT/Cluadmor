@@ -27,12 +27,7 @@ export default function KeysPage() {
   const [issuedKey, setIssuedKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [form, setForm] = useState({
-    robloxUserId: "",
-    robloxUsername: "",
-    discordUserId: "",
-    expiresAt: ""
-  });
+  const [expiresAt, setExpiresAt] = useState("");
 
   async function load() {
     const s = await fetch("/api/workspace/services", { cache: "no-store" });
@@ -68,10 +63,7 @@ export default function KeysPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceId,
-          robloxUserId: form.robloxUserId || null,
-          robloxUsername: form.robloxUsername || null,
-          discordUserId: form.discordUserId || null,
-          expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
         })
       });
       const data = await res.json();
@@ -97,7 +89,7 @@ export default function KeysPage() {
         <div>
           <span className="muted">Key system</span>
           <h1>Keys</h1>
-          <p>Create keys for the users of your services. HWID binds on first authentication when required.</p>
+          <p>Create keys for your services. On first successful execution, each key automatically locks to that executor's HWID, Roblox UserId, and Roblox username.</p>
         </div>
         <button className="primaryBtn" disabled={authenticated !== true || services.length === 0} onClick={() => setCreating(true)}>
           <Plus size={14}/> Create key
@@ -145,10 +137,21 @@ export default function KeysPage() {
             </label>
 
             <div className="formGrid">
-              <label>Roblox UserId<input className="input" value={form.robloxUserId} onChange={e => setForm(v => ({...v, robloxUserId:e.target.value}))} placeholder="optional"/></label>
-              <label>Roblox username<input className="input" value={form.robloxUsername} onChange={e => setForm(v => ({...v, robloxUsername:e.target.value}))} placeholder="optional"/></label>
-              <label>Discord UserId<input className="input" value={form.discordUserId} onChange={e => setForm(v => ({...v, discordUserId:e.target.value}))} placeholder="optional"/></label>
-              <label>Expires at<input className="input" type="datetime-local" value={form.expiresAt} onChange={e => setForm(v => ({...v, expiresAt:e.target.value}))}/></label>
+              <label>
+                Expires at
+                <input
+                  className="input"
+                  type="datetime-local"
+                  value={expiresAt}
+                  onChange={e => setExpiresAt(e.target.value)}
+                />
+              </label>
+              <div className="notice ownerNotice">
+                <div>
+                  <strong>Automatic first-use binding</strong>
+                  <span>The first successful execution sets HWID, Roblox UserId, and Roblox username. These cannot be pre-set here.</span>
+                </div>
+              </div>
             </div>
 
             <div className="row">
