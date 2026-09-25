@@ -143,3 +143,27 @@ a:active,button:active{transform:translateY(1px)}
 .authCommunity a{display:inline-flex;align-items:center;gap:5px;color:#8fdde7}
 .authCommunity a:hover{color:#d5f7fb}
 @media(max-width:520px){.authCommunity{align-items:flex-start;flex-direction:column}}
+
+
+/* phone-sized public/auth layouts */
+@media(max-width:680px){
+  .siteHeader{grid-template-columns:minmax(0,1fr) auto;gap:10px}
+  .siteActions{gap:8px}
+  .siteActions .siteButton{width:auto;white-space:nowrap;padding:0 11px}
+  .siteBrand{min-width:0}
+  .siteHero{overflow:hidden}
+  .heroPanel{min-width:0;width:100%}
+  .heroPanelRows>div{grid-template-columns:minmax(0,1fr) auto}
+  .heroPanelRows strong{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .authPage{padding:18px 10px}
+  .authPanel,.socialAuthPanel{width:100%;padding:17px}
+  .socialButton{min-height:48px;height:auto;padding-top:10px;padding-bottom:10px}
+}
+@media(max-width:420px){
+  .siteHeader{padding-left:10px;padding-right:10px}
+  .siteBrand img{width:32px;height:32px}
+  .siteBrand{gap:8px}
+  .siteActions .siteButton{font-size:11px;padding:0 9px}
+  .heroMain h1{font-size:38px}
+  .productIntro h2,.routingCopy h2{font-size:29px}
+}

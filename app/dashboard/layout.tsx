@@ -15,7 +15,8 @@ import {
   Settings,
   Route,
   FileText,
-  Activity
+  Activity,
+  Menu
 } from "lucide-react";
 
 const groups = [
@@ -48,6 +49,31 @@ const groups = [
   }
 ];
 
+function Navigation({ mobile = false }: { mobile?: boolean }) {
+  return (
+    <>
+      {groups.map(group => (
+        <div className={mobile ? "mobileNavGroup" : "navGroup"} key={group.label}>
+          <div className={mobile ? "mobileNavLabel" : "navLabel"}>{group.label}</div>
+          {group.items.map(item => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={mobile ? "mobileNavItem" : "navItem"}
+              >
+                <Icon size={mobile ? 18 : 16} strokeWidth={1.8} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+    </>
+  );
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="dash">
@@ -61,20 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Link>
 
         <nav className="sideNav">
-          {groups.map(group => (
-            <div className="navGroup" key={group.label}>
-              <div className="navLabel">{group.label}</div>
-              {group.items.map(item => {
-                const Icon = item.icon;
-                return (
-                  <Link key={item.href} href={item.href} className="navItem">
-                    <Icon size={16} strokeWidth={1.8} />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+          <Navigation />
         </nav>
 
         <div className="sidebarBottom">
@@ -89,12 +102,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <section className="dashMain">
         <header className="topbar">
+          <details className="mobileMenu">
+            <summary aria-label="Open dashboard navigation">
+              <Menu size={19} />
+            </summary>
+
+            <div className="mobileMenuPanel">
+              <Link href="/" className="mobileMenuBrand">
+                <img src="/claudmor-mark.svg" alt="" />
+                <div>
+                  <strong>Claudmor</strong>
+                  <span>control panel</span>
+                </div>
+              </Link>
+
+              <nav className="mobileNav">
+                <Navigation mobile />
+              </nav>
+
+              <div className="mobileMenuLinks">
+                <a href="https://dsc.gg/oxyenv" target="_blank" rel="noreferrer">
+                  Discord updates <ExternalLink size={14} />
+                </a>
+                <a href="https://guns.lol/larpcorrupted" target="_blank" rel="noreferrer">
+                  larpcorrupted <ExternalLink size={14} />
+                </a>
+              </div>
+            </div>
+          </details>
+
           <div className="crumb">Claudmor / dashboard</div>
+
           <div className="topActions">
             <button className="searchBtn"><Search size={15} /> Search <kbd>Ctrl K</kbd></button>
             <Link href="/dashboard/credits" className="creditBtn"><Coins size={15} /> Credits</Link>
           </div>
         </header>
+
         <main className="dashContent">{children}</main>
       </section>
     </div>

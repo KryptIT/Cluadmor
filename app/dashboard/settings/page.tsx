@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   KeyRound,
   LogOut,
+  PlugZap,
   ShieldCheck,
   UserRound
 } from "lucide-react";
@@ -21,18 +22,34 @@ type Session = {
   };
 };
 
+type ConfigStatus = {
+  googleOAuth: boolean;
+  discordOAuth: boolean;
+  claudiumApi: boolean;
+  ownerAccess: boolean;
+};
+
+const emptyConfig: ConfigStatus = {
+  googleOAuth: false,
+  discordOAuth: false,
+  claudiumApi: false,
+  ownerAccess: false
+};
+
 export default function SettingsPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [owner, setOwner] = useState<boolean | null>(null);
   const [ownerKey, setOwnerKey] = useState("");
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [config, setConfig] = useState<ConfigStatus>(emptyConfig);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function refresh() {
-    const [ownerRes, sessionRes] = await Promise.all([
+    const [ownerRes, sessionRes, configRes] = await Promise.all([
       fetch("/api/owner/session", { cache: "no-store" }),
-      fetch("/api/account/session", { cache: "no-store" })
+      fetch("/api/account/session", { cache: "no-store" }),
+      fetch("/api/config/status", { cache: "no-store" })
     ]);
 
     if (ownerRes.ok) {
@@ -43,6 +60,16 @@ export default function SettingsPage() {
 
     if (sessionRes.ok) {
       setSession(await sessionRes.json());
+    }
+
+    if (configRes.ok) {
+      const data = await configRes.json();
+      setConfig({
+        googleOAuth: !!data.googleOAuth,
+        discordOAuth: !!data.discordOAuth,
+        claudiumApi: !!data.claudiumApi,
+        ownerAccess: !!data.ownerAccess
+      });
     }
   }
 
@@ -64,7 +91,7 @@ export default function SettingsPage() {
       if (!res.ok) {
         setMessage(
           data.error === "owner_key_not_configured"
-            ? "CLAUDMOR_OWNER_KEY is not configured on Vercel."
+            ? "Owner access is not configured for this deployment."
             : data.error === "login_required"
               ? "Sign in with Google or Discord before enabling owner mode."
               : "Owner key rejected."
@@ -88,6 +115,7 @@ export default function SettingsPage() {
 
   async function signOut() {
     setBusy(true);
+
     try {
       await fetch("/api/account/session", { method: "DELETE" });
       window.location.href = "/login";
@@ -102,13 +130,20 @@ export default function SettingsPage() {
     session?.user?.username ||
     "Claudmor account";
 
+  const configRows = [
+    { label: "Google OAuth", detail: "Google account sign-in", ready: config.googleOAuth },
+    { label: "Discord OAuth", detail: "Discord account sign-in", ready: config.discordOAuth },
+    { label: "Claudium API", detail: "Protected build backend", ready: config.claudiumApi },
+    { label: "Owner access", detail: "Owner bypass authentication", ready: config.ownerAccess }
+  ];
+
   return (
     <>
       <div className="pageHead">
         <div>
           <span className="muted">Workspace</span>
           <h1>Settings</h1>
-          <p>Account, owner bypass, and deployment configuration.</p>
+          <p>Account, owner access, and deployment connections.</p>
         </div>
       </div>
 
@@ -161,6 +196,36 @@ export default function SettingsPage() {
       <section className="panelCard settingsPanel settingsPanelGap">
         <div className="panelTitle">
           <div>
+            <span className="iconBox"><PlugZap size={15}/></span>
+            <strong>Configuration</strong>
+          </div>
+        </div>
+
+        <div className="settingsBody">
+          <div className="configStatusGrid">
+            {configRows.map(row => (
+              <div className="configStatusRow" key={row.label}>
+                <div>
+                  <strong>{row.label}</strong>
+                  <small>{row.detail}</small>
+                </div>
+
+                <span className={row.ready ? "configReady" : "configMissing"}>
+                  {row.ready ? "ready" : "not configured"}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p className="configPrivacyNote">
+            Claudmor only shows connection status here. Credentials and secrets stay on the server and are never displayed in the browser.
+          </p>
+        </div>
+      </section>
+
+      <section className="panelCard settingsPanel settingsPanelGap">
+        <div className="panelTitle">
+          <div>
             <span className="iconBox"><ShieldCheck size={15}/></span>
             <strong>Owner bypass</strong>
           </div>
@@ -193,7 +258,7 @@ export default function SettingsPage() {
           ) : (
             <div className="ownerLogin">
               <label>
-                Owner key
+                Owner access key
                 <div className="ownerKeyRow">
                   <div className="ownerKeyInput">
                     <KeyRound size={14}/>
@@ -201,7 +266,7 @@ export default function SettingsPage() {
                       type="password"
                       value={ownerKey}
                       onChange={e => setOwnerKey(e.target.value)}
-                      placeholder="CLAUDMOR_OWNER_KEY"
+                      placeholder="Enter owner access key"
                       onKeyDown={e => { if (e.key === "Enter") activate(); }}
                     />
                   </div>
@@ -220,7 +285,7 @@ export default function SettingsPage() {
 
           {configured === false && (
             <div className="formError">
-              CLAUDMOR_OWNER_KEY is not loaded by this deployment. Add it to the Production environment in Vercel, then redeploy.
+              Owner access is not configured for this deployment. Add the owner key in your hosting provider's production settings, then redeploy.
             </div>
           )}
 
@@ -229,13 +294,13 @@ export default function SettingsPage() {
       </section>
 
       <section className="hintCard">
-        <strong>OAuth environment</strong>
-        <p>Google uses <code>GOOGLE_CLIENT_ID</code> + <code>GOOGLE_CLIENT_SECRET</code>. Discord uses <code>DISCORD_CLIENT_ID</code> + <code>DISCORD_CLIENT_SECRET</code>. Keep every secret server-side.</p>
+        <strong>Sign-in providers</strong>
+        <p>Google OAuth and Discord OAuth are configured server-side. Claudmor never shows their private credentials in the dashboard.</p>
       </section>
 
       <section className="hintCard">
-        <strong>Owner variable</strong>
-        <p><code>CLAUDMOR_OWNER_KEY</code> can be any non-empty value, including your existing 8-character key. Add it to Vercel Production exactly as the key itself, without extra quotes, then redeploy. Never prefix it with <code>NEXT_PUBLIC_</code>.</p>
+        <strong>Deployment security</strong>
+        <p>Keep authentication, database, reward-provider, and Claudium credentials private on the server. The website only reports whether supported connections are ready.</p>
       </section>
     </>
   );

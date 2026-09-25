@@ -51,7 +51,7 @@ button:disabled{cursor:not-allowed;opacity:.48}
 .panelCard,.providerCard,.notice,.hintCard{transition:border-color .16s ease,background-color .16s ease}
 .input,.sourceEditor,.outputEditor,.ownerKeyInput{transition:border-color .16s ease,box-shadow .16s ease}
 .input:focus,.sourceEditor:focus,.outputEditor:focus,.ownerKeyInput:focus-within{box-shadow:0 0 0 3px rgba(34,211,238,.055)}
-.routeForm{display:grid;grid-template-columns:1fr 150px 1fr 1fr 90px auto;gap:10px;align-items:end;padding-top:16px}
+.routeForm{display:grid;grid-template-columns:minmax(150px,1.15fr) 140px minmax(130px,.9fr) minmax(150px,1fr) minmax(150px,1fr) 80px auto;gap:10px;align-items:end;padding-top:16px}
 .routeForm label{display:block;color:#7f8d94;font-size:10px}
 .routeForm .input{margin-top:5px}
 .routeSave{height:36px}
@@ -64,7 +64,7 @@ button:disabled{cursor:not-allowed;opacity:.48}
 .routeValue small,.routeScript small{margin-top:3px;color:#5c6a71;font-size:9px}
 .routeArrow{color:#45545b;text-align:center}
 .authNote{color:#69777e;font-size:11px}
-@media(max-width:980px){
+@media(max-width:1080px){
   .routeForm{grid-template-columns:1fr 1fr}
   .routeSave{align-self:end}
 }
@@ -220,3 +220,40 @@ button:disabled{cursor:not-allowed;opacity:.48}
 .accountIdentity strong{max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
 .accountIdentity small{margin-top:4px;color:#5f6d74;font-size:9px}
 @media(max-width:640px){.accountSettingsRow{align-items:stretch;flex-direction:column}}
+
+
+/* friendly configuration status */
+.configStatusGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.configStatusRow{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid var(--border);border-radius:4px;background:#090e11}
+.configStatusRow strong,.configStatusRow small{display:block}
+.configStatusRow strong{font-size:11px}
+.configStatusRow small{margin-top:4px;color:#5f6d74;font-size:9px}
+.configReady,.configMissing{flex:0 0 auto;padding:4px 7px;border:1px solid var(--border);border-radius:999px;font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase}
+.configReady{color:#79d8a8;border-color:#22553d;background:#0a1711}
+.configMissing{color:#d39a9f;border-color:#51272b;background:#140c0d}
+.configPrivacyNote{margin:12px 0 0!important;color:#617078!important;font-size:10px!important}
+
+@media(max-width:720px){
+  .settingsPanel{max-width:100%}
+  .configStatusGrid{grid-template-columns:1fr}
+  .configStatusRow{min-height:64px}
+  .ownerKeyRow,.ownerActive,.ownerNotice,.secretNotice{align-items:stretch;flex-direction:column}
+  .ownerKeyRow .primaryBtn,.ownerActive .secondaryBtn,.ownerNotice .secondaryBtn{width:100%}
+  .ownerKeyInput{min-height:44px}
+  .createServiceForm,.scriptMeta,.providerFormAlways{min-width:0}
+  .serviceRow{min-width:0}
+  .serviceMain{min-width:0}
+  .serviceMain small{overflow-wrap:anywhere}
+  .editorActions{justify-content:flex-start;flex-wrap:wrap}
+  .editorActions .primaryBtn,.editorActions .secondaryBtn{flex:1 1 140px}
+  .sourceEditor,.outputEditor{min-height:280px}
+  .loaderPublishBox{padding:12px}
+  .copyField{grid-template-columns:1fr}
+  .copyField code{width:100%;max-width:100%}
+  .copyField .secondaryBtn,.copyField .iconButton,.copyField>a.iconButton{grid-column:auto;width:100%}
+  .telemetryChart{overflow-x:auto}
+  .rangeSwitch{width:100%}
+  .rangeSwitch button{flex:1}
+  .routeForm{grid-template-columns:1fr}
+  .routeSave{width:100%}
+}
