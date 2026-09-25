@@ -242,7 +242,7 @@ export async function POST(req: Request) {
         const readableBootstrap = buildPublicBootstrap(origin, String(service.id));
         const loaderResult = await runClaudium(
           buildLoader(origin, String(service.id)),
-          "luau",
+          "roblox",
           true
         );
 
@@ -311,7 +311,7 @@ export async function POST(req: Request) {
         const readableBootstrap = buildPublicBootstrap(origin, String(service.id));
         const loaderResult = await runClaudium(
           buildLoader(origin, String(service.id)),
-          "luau",
+          "roblox",
           true
         );
 
