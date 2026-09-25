@@ -404,7 +404,7 @@ export function buildPublicLauncher(baseUrl: string, serviceId: string) {
 
   // Claudium only hides the second-stage URL. The public /l route captures the
   // executor's real loadstring before entering the VM and performs compilation
-  // outside Claudium, avoiding RobloxScript-context loadstring on other executors.
+  // outside Claudium, avoiding RobloxScript-context loadstring on other executors. Retry deployment.
   return `if type(getgenv) == "function" then
     getgenv().MESSAGE = "This is a claudmor message if you see this please stop :) dsc.gg/oxyenv"
 end
