@@ -6,13 +6,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, ch => ({
+  const entities: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
     "'": "&#39;"
-  }[ch] || ch));
+  };
+  return value.replace(/[&<>"']/g, ch => entities[ch] || ch);
 }
 
 function page(title: string, body: string, status = 200) {
