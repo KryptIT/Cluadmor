@@ -239,10 +239,12 @@ export async function POST(req: Request) {
 
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
-        const [loaderResult, bootstrapResult] = await Promise.all([
-          runClaudium(buildLoader(origin, String(service.id)), "executor", true),
-          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", true)
-        ]);
+        const readableBootstrap = buildPublicBootstrap(origin, String(service.id));
+        const loaderResult = await runClaudium(
+          buildLoader(origin, String(service.id)),
+          "executor",
+          true
+        );
 
         if (!loaderResult.ok) {
           return {
@@ -256,22 +258,10 @@ export async function POST(req: Request) {
           };
         }
 
-        if (!bootstrapResult.ok) {
-          return {
-            id: service.id,
-            name: service.name,
-            ownerId: service.owner_id,
-            owner: service.owner_email || service.owner_username || service.owner_id,
-            ok: false,
-            error: bootstrapResult.error,
-            detail: bootstrapResult.detail || null
-          };
-        }
-
         await sql`
           UPDATE service_loaders
           SET loader_ciphertext = ${encryptConfig({ source: loaderResult.output })},
-              bootstrap_ciphertext = ${encryptConfig({ source: bootstrapResult.output })},
+              bootstrap_ciphertext = ${encryptConfig({ source: readableBootstrap })},
               updated_at = now()
           WHERE service_id = ${service.id}
         `;
@@ -318,10 +308,12 @@ export async function POST(req: Request) {
 
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
-        const [loaderResult, bootstrapResult] = await Promise.all([
-          runClaudium(buildLoader(origin, String(service.id)), "executor", true),
-          runClaudium(buildPublicBootstrap(origin, String(service.id)), "executor", true)
-        ]);
+        const readableBootstrap = buildPublicBootstrap(origin, String(service.id));
+        const loaderResult = await runClaudium(
+          buildLoader(origin, String(service.id)),
+          "executor",
+          true
+        );
 
         if (!loaderResult.ok) {
           return {
@@ -333,20 +325,10 @@ export async function POST(req: Request) {
           };
         }
 
-        if (!bootstrapResult.ok) {
-          return {
-            id: service.id,
-            name: service.name,
-            ok: false,
-            error: bootstrapResult.error,
-            detail: bootstrapResult.detail || null
-          };
-        }
-
         await sql`
           UPDATE service_loaders
           SET loader_ciphertext = ${encryptConfig({ source: loaderResult.output })},
-              bootstrap_ciphertext = ${encryptConfig({ source: bootstrapResult.output })},
+              bootstrap_ciphertext = ${encryptConfig({ source: readableBootstrap })},
               updated_at = now()
           WHERE service_id = ${service.id}
         `;
