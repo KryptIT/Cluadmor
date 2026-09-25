@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         source,
         preset: body.preset || "executor",
-        antiTamper: false
+        antiTamper: true
       }),
       cache: "no-store"
     });
