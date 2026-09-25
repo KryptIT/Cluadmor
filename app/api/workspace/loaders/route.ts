@@ -82,8 +82,10 @@ export async function POST(req: Request) {
   const readableLoader = buildLoader(origin, body.serviceId);
   const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
 
-  // Use the Roblox preset for the internal loader; the Luau preset caused executor crashes. Retry deploy.
-  const loaderResult = await runClaudium(readableLoader, "roblox", true);
+  const [loaderResult, bootstrapResult] = await Promise.all([
+    runClaudium(readableLoader, "roblox", true),
+    runClaudium(readableBootstrap, "roblox", true)
+  ]);
 
   if (!loaderResult.ok) {
     return noStoreJson({
@@ -92,6 +94,15 @@ export async function POST(req: Request) {
       detail: loaderResult.detail || null,
       upstreamStatus: loaderResult.status
     }, loaderResult.status >= 400 && loaderResult.status < 600 ? loaderResult.status : 502);
+  }
+
+  if (!bootstrapResult.ok) {
+    return noStoreJson({
+      ok: false,
+      error: bootstrapResult.error,
+      detail: bootstrapResult.detail || null,
+      upstreamStatus: bootstrapResult.status
+    }, bootstrapResult.status >= 400 && bootstrapResult.status < 600 ? bootstrapResult.status : 502);
   }
 
   await sql`
@@ -104,7 +115,7 @@ export async function POST(req: Request) {
     VALUES (
       ${body.serviceId},
       ${encryptConfig({ source: loaderResult.output })},
-      ${encryptConfig({ source: readableBootstrap })},
+      ${encryptConfig({ source: bootstrapResult.output })},
       now()
     )
     ON CONFLICT(service_id)
