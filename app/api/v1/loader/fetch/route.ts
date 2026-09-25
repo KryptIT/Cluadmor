@@ -1,13 +1,18 @@
+import { randomBytes, randomInt } from "crypto";
 import { decryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
-import { clientIp, digest, noStoreJson, normalizeHwid, opaque } from "@/lib/security";
+import { clientIp, clientNonceHash, digest, noStoreJson, normalizeHwid, opaque } from "@/lib/security";
+import { HEARTBEAT_INTERVAL_SECONDS, HEARTBEAT_TTL_SECONDS } from "@/lib/runtime-session";
 import { recordTelemetry } from "@/lib/telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function deliveryGuard(token: string, matchType: string, matchValue: string) {
+// How long a delivered script stays runnable; a captured copy replayed later refuses to start.
+const DELIVERY_TTL_SECONDS = 120;
+
+function deliveryGuard(token: string, matchType: string, matchValue: string, expiresAt: number) {
   const routeCheck =
     matchType === "PLACE"
       ? `if tostring(game.PlaceId) ~= "${matchValue}" then error("[Claudmor] invalid place", 0) end\n`
@@ -19,7 +24,67 @@ function deliveryGuard(token: string, matchType: string, matchValue: string) {
 if type(__cm.SCRIPT_KEY) ~= "string" or __cm.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end
 if __cm.__CLAUDMOR_AUTHORIZED ~= true then error("[Claudmor] unauthorized execution", 0) end
 if __cm.__CLAUDMOR_DELIVERY ~= "${token}" then error("[Claudmor] invalid delivery token", 0) end
+local __cmNow = os.time()
+pcall(function() __cmNow = workspace:GetServerTimeNow() end)
+if __cmNow > ${expiresAt} then error("[Claudmor] delivery expired", 0) end
 ${routeCheck}`;
+}
+
+function randomName() {
+  return "_" + randomBytes(8).toString("hex");
+}
+
+// Harmless throwaway statements mixed into the guard so no two deliveries share a byte layout.
+function decoyStatements() {
+  const count = randomInt(3, 8);
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const name = randomName();
+    const roll = randomInt(3);
+    if (roll === 0) {
+      out.push(`local ${name} = "${randomBytes(randomInt(4, 13)).toString("hex")}"`);
+    } else if (roll === 1) {
+      out.push(`local ${name} = ${randomInt(1, 2147483647)}`);
+    } else {
+      out.push(`local ${name} = function() return ${randomInt(1, 2147483647)} end`);
+    }
+  }
+  return out;
+}
+
+function shuffle<T>(items: T[]) {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
+// Guard for nonce-aware loaders: a one-off env slot, random local names and a randomized
+// check order, so no two deliveries share a shape a generic bypass could patch.
+function randomizedGuard(
+  token: string,
+  slot: string,
+  matchType: string,
+  matchValue: string,
+  expiresAt: number
+) {
+  const env = randomName();
+  const now = randomName();
+  const checks = [
+    `if type(${env}.SCRIPT_KEY) ~= "string" or ${env}.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end`,
+    `if ${env}["${slot}"] ~= "${token}" then error("[Claudmor] invalid delivery token", 0) end`,
+    `local ${now} = os.time() pcall(function() ${now} = workspace:GetServerTimeNow() end) if ${now} > ${expiresAt} then error("[Claudmor] delivery expired", 0) end`
+  ];
+
+  if (matchType === "PLACE") {
+    checks.push(`if tostring(game.PlaceId) ~= "${matchValue}" then error("[Claudmor] invalid place", 0) end`);
+  } else if (matchType === "UNIVERSE") {
+    checks.push(`if tostring(game.GameId) ~= "${matchValue}" then error("[Claudmor] invalid universe", 0) end`);
+  }
+
+  const lines = shuffle([...checks, ...decoyStatements()]).map(line => `do ${line} end`);
+  return `local ${env} = (getgenv and getgenv()) or _G\n` + lines.join("\n") + "\n";
 }
 
 async function findRoute(
@@ -87,6 +152,7 @@ export async function POST(req: Request) {
     hwid?: string;
     placeId?: string | number;
     universeId?: string | number;
+    nonce?: string;
   };
 
   try {
@@ -103,15 +169,18 @@ export async function POST(req: Request) {
   const hwidHash = digest(normalizeHwid(body.hwid));
   const placeId = String(body.placeId || "").trim();
   const universeId = String(body.universeId || "").trim();
+  const nonceHash = clientNonceHash(body.nonce);
 
+  // Tickets minted by a nonce-aware loader can only be redeemed by that same run.
   const consumed = await sql`
     UPDATE bootstrap_tickets
     SET consumed_at = now()
     WHERE ticket_hash = ${ticketHash}
       AND hwid_hash = ${hwidHash}
+      AND (client_nonce_hash IS NULL OR client_nonce_hash = ${nonceHash})
       AND consumed_at IS NULL
       AND expires_at > now()
-    RETURNING service_id, key_id
+    RETURNING service_id, key_id, client_nonce_hash
   `;
 
   if (!consumed[0]) {
@@ -230,14 +299,40 @@ export async function POST(req: Request) {
     return noStoreJson({ ok: false, error: "empty_build" }, 500);
   }
 
-  const deliveryToken = opaque("CMD", 18);
+  const deliveryToken = opaque("CMD", 24);
   const guardMatch = firstMatch || {
     type: String(resolved.match_type),
     value: String(resolved.match_value || "")
   };
 
+  const expiresAt = Math.floor(Date.now() / 1000) + DELIVERY_TTL_SECONDS;
+  // Only nonce-aware loaders know to fill the random slot; older loaders keep the fixed guard.
+  const guardSlot = ticket.client_nonce_hash ? randomName() : null;
+
+  // Per-delivery watermark: a leaked copy of this script can be traced back to the key that got it.
+  const watermark = opaque("CMW", 12);
+  const heartbeatToken = opaque("CMH", 24);
+
   const source =
-    deliveryGuard(deliveryToken, guardMatch.type, guardMatch.value) + payload;
+    `-- ${watermark}\n` +
+    (guardSlot
+      ? randomizedGuard(deliveryToken, guardSlot, guardMatch.type, guardMatch.value, expiresAt)
+      : deliveryGuard(deliveryToken, guardMatch.type, guardMatch.value, expiresAt)) + payload;
+
+  await sql`
+    INSERT INTO runtime_sessions(
+      service_id, key_id, hwid_hash, client_nonce_hash, token_hash, watermark, expires_at
+    )
+    VALUES (
+      ${ticket.service_id},
+      ${ticket.key_id},
+      ${hwidHash},
+      ${ticket.client_nonce_hash || null},
+      ${digest(heartbeatToken)},
+      ${watermark},
+      now() + (${HEARTBEAT_TTL_SECONDS} * interval '1 second')
+    )
+  `;
 
   const ipHash = digest(clientIp(req.headers));
 
@@ -260,12 +355,19 @@ export async function POST(req: Request) {
     ipHash,
     placeId,
     universeId,
-    routeType: guardMatch.type
+    routeType: guardMatch.type,
+    metadata: { watermark }
   });
 
   return noStoreJson({
     ok: true,
     deliveryToken,
+    ...(guardSlot ? { guardSlot } : {}),
+    heartbeat: {
+      endpoint: "/api/v1/loader/heartbeat",
+      token: heartbeatToken,
+      interval: HEARTBEAT_INTERVAL_SECONDS
+    },
     source,
     scriptName: resolved.script_name,
     scriptId: resolved.script_id,
