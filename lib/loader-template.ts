@@ -59,8 +59,8 @@ local function httpPost(url, bodyTable, headers)
     }
 end
 
--- The readable bootstrap passes the executor's real compiler into this
--- obfuscated loader. This avoids obfuscator VM environments hiding loadstring.
+-- The bootstrap passes the executor's real compiler into the loader.
+-- This keeps compilation bound to the executor's own environment.
 local inheritedCompiler = ...
 local compiler = type(inheritedCompiler) == "function" and inheritedCompiler or nil
 
