@@ -1,11 +1,7 @@
 export function buildLoader(baseUrl: string, serviceId: string) {
   const base = baseUrl.replace(/\/+$/, "");
 
-  return `local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local RbxAnalyticsService = game:GetService("RbxAnalyticsService")
-
-local GLOBAL_ENV = type(_G) == "table" and _G or {}
+  return `local GLOBAL_ENV = type(_G) == "table" and _G or {}
 local ENV = GLOBAL_ENV
 if type(getgenv) == "function" then
     local okEnv, resolvedEnv = pcall(getgenv)
@@ -38,7 +34,7 @@ if type(requestFn) ~= "function" and type(http_request) == "function" then
 end
 
 local function httpPost(url, bodyTable, headers)
-    local encoded = HttpService:JSONEncode(bodyTable or {})
+    local encoded = game:GetService("HttpService"):JSONEncode(bodyTable or {})
 
     if requestFn then
         local response = requestFn({
@@ -95,14 +91,14 @@ local function post(path, body, headers)
     if status < 200 or status >= 300 then
         local detail = raw
         pcall(function()
-            local decoded = HttpService:JSONDecode(raw)
+            local decoded = game:GetService("HttpService"):JSONDecode(raw)
             detail = decoded.detail or decoded.error or raw
         end)
         error("[Claudmor] request failed (" .. tostring(status) .. "): " .. tostring(detail), 0)
     end
 
     local ok, decoded = pcall(function()
-            return HttpService:JSONDecode(raw)
+            return game:GetService("HttpService"):JSONDecode(raw)
         end)
     if not ok or type(decoded) ~= "table" then
         error("[Claudmor] invalid server response", 0)
@@ -134,7 +130,7 @@ local function getHwid()
     end
 
     local ok, value = pcall(function()
-        return RbxAnalyticsService:GetClientId()
+        return game:GetService("RbxAnalyticsService"):GetClientId()
     end)
 
     if ok and type(value) == "string" and value ~= "" then
@@ -144,10 +140,10 @@ local function getHwid()
     error("[Claudmor] unable to resolve HWID", 0)
 end
 
-local player = Players.LocalPlayer
+local player = game:GetService("Players").LocalPlayer
 while not player do
-    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
-    player = Players.LocalPlayer
+    game:GetService("Players"):GetPropertyChangedSignal("LocalPlayer"):Wait()
+    player = game:GetService("Players").LocalPlayer
 end
 
 local hwid = getHwid()
@@ -156,8 +152,8 @@ local hwid = getHwid()
 -- so a captured request sequence cannot be replayed without it.
 local function makeNonce()
     local parts = {
-        HttpService:GenerateGUID(false):gsub("-", ""),
-        HttpService:GenerateGUID(false):gsub("-", ""),
+        game:GetService("HttpService"):GenerateGUID(false):gsub("-", ""),
+        game:GetService("HttpService"):GenerateGUID(false):gsub("-", ""),
         tostring(os.time())
     }
 
