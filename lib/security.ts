@@ -26,6 +26,14 @@ export function normalizeHwid(value: string) {
   return value.trim().slice(0, 512);
 }
 
+// Hashes the random per-run nonce a loader generates; null when absent or malformed.
+export function clientNonceHash(value: unknown) {
+  if (typeof value !== "string") return null;
+  const nonce = value.trim();
+  if (nonce.length < 32 || nonce.length > 128 || !/^[A-Za-z0-9_-]+$/.test(nonce)) return null;
+  return digest("client-nonce:" + nonce);
+}
+
 export function clientIp(headers: Headers) {
   return (
     headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||

@@ -1,10 +1,13 @@
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 
 type SessionPayload = {
   serviceId: string;
   keyId: string;
   ownerId: string;
   hwidHash: string;
+  jti: string;
+  // Hash of the loader's random per-run nonce; absent for loaders published before it existed.
+  clientNonceHash?: string;
   exp: number;
 };
 
@@ -24,9 +27,11 @@ function sign(body: string) {
   return createHmac("sha256", sessionSecret()).update(body).digest("base64url");
 }
 
-export function issueSession(payload: Omit<SessionPayload, "exp">, ttlSeconds = 300) {
+export function issueSession(payload: Omit<SessionPayload, "exp" | "jti">, ttlSeconds = 300) {
   const full: SessionPayload = {
     ...payload,
+    // Random per-session nonce so each token is unique and can be spent once.
+    jti: randomBytes(18).toString("base64url"),
     exp: Math.floor(Date.now() / 1000) + ttlSeconds
   };
   const body = b64url(JSON.stringify(full));
@@ -46,6 +51,7 @@ export function verifySession(token: string): SessionPayload | null {
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
     if (!payload.exp || payload.exp <= Math.floor(Date.now() / 1000)) return null;
+    if (typeof payload.jti !== "string" || payload.jti.length < 16) return null;
     return payload;
   } catch {
     return null;
