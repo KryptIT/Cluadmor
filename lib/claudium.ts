@@ -14,15 +14,6 @@ function isInternalLoaderSource(source: string) {
   );
 }
 
-function isRoutedUserScript(source: string) {
-  return (
-    source.includes('__CLAUDMOR_AUTHORIZED') &&
-    source.includes('__CLAUDMOR_SERVICE') &&
-    source.includes('unauthorized execution') &&
-    source.includes('invalid service')
-  );
-}
-
 function rawBaseUrl() {
   const raw = (process.env.CLAUDIUM_INTERNAL_URL || "").trim();
   if (!raw) return null;
@@ -120,10 +111,7 @@ export async function runClaudium(source: string, preset = "executor", antiTampe
       body: JSON.stringify({
         source,
         preset: preset || "executor",
-        // Claudium anti-tamper can hard-crash some Roblox executors when the
-        // protected routed payload begins execution. Keep the script obfuscated,
-        // but disable only anti-tamper for Claudmor-routed user scripts.
-        antiTamper: isRoutedUserScript(source) ? false : antiTamper
+        antiTamper
       }),
       cache: "no-store"
     });
