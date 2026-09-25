@@ -15,12 +15,9 @@ if type(getgenv) == "function" then
 end
 local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
 
-local requestFn = rawget(ENV, "request")
-if type(requestFn) ~= "function" then
-    requestFn = rawget(GLOBAL_ENV, "request")
-end
-if type(requestFn) ~= "function" then
-    requestFn = nil
+local requestFn = type(request) == "function" and request or nil
+if type(requestFn) ~= "function" and type(http_request) == "function" then
+    requestFn = http_request
 end
 
 local function httpPost(url, bodyTable, headers)
@@ -109,8 +106,8 @@ local function getHwid()
     local probes = {
         ENV.gethwid,
         ENV.get_hwid,
-        rawget(GLOBAL_ENV, "gethwid"),
-        rawget(GLOBAL_ENV, "get_hwid")
+        gethwid,
+        get_hwid
     }
 
     for _, probe in ipairs(probes) do
