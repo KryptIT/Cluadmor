@@ -82,7 +82,7 @@ export async function POST(req: Request) {
   const readableLoader = buildLoader(origin, body.serviceId);
   const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
 
-  // Use the Roblox preset for the internal loader; the Luau preset caused executor crashes.
+  // Use the Roblox preset for the internal loader; the Luau preset caused executor crashes. Retry deploy.
   const loaderResult = await runClaudium(readableLoader, "roblox", true);
 
   if (!loaderResult.ok) {
