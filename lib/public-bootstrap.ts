@@ -353,11 +353,52 @@ if type(source) ~= "string" or source == "" then
     error("[Claudmor] loader response is empty", 0)
 end
 
-local chunk, compileError = compiler(source, "@Claudmor/loader")
-if not chunk then
-    error("[Claudmor] loader compile failed: " .. tostring(compileError), 0)
+local loaderChunk, loaderCompileError = compiler(source, "@Claudmor/loader")
+if not loaderChunk then
+    error("[Claudmor] loader compile failed: " .. tostring(loaderCompileError), 0)
 end
 
-return chunk(compiler)
+local okLoader, payload = pcall(loaderChunk)
+if not okLoader then
+    error(payload, 0)
+end
+
+if type(payload) ~= "table" or type(payload.source) ~= "string" or payload.source == "" then
+    error("[Claudmor] invalid routed loader payload", 0)
+end
+
+local routedChunk, routedCompileError = compiler(
+    payload.source,
+    "@Claudmor/" .. tostring(payload.scriptName or "script")
+)
+
+if not routedChunk then
+    if type(payload.finish) == "function" then
+        pcall(payload.finish)
+    end
+    error("[Claudmor] routed script compile failed: " .. tostring(routedCompileError), 0)
+end
+
+if type(payload.begin) == "function" then
+    local okBegin, beginError = pcall(payload.begin)
+    if not okBegin then
+        if type(payload.finish) == "function" then
+            pcall(payload.finish)
+        end
+        error(beginError, 0)
+    end
+end
+
+local okRun, result = pcall(routedChunk)
+
+if type(payload.finish) == "function" then
+    pcall(payload.finish)
+end
+
+if not okRun then
+    error(result, 0)
+end
+
+return result
 `;
 }
