@@ -82,10 +82,7 @@ export async function POST(req: Request) {
   const readableLoader = buildLoader(origin, body.serviceId);
   const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
 
-  const [loaderResult, bootstrapResult] = await Promise.all([
-    runClaudium(readableLoader, "executor", true),
-    runClaudium(readableBootstrap, "executor", true)
-  ]);
+  const loaderResult = await runClaudium(readableLoader, "executor", true);
 
   if (!loaderResult.ok) {
     return noStoreJson({
@@ -94,15 +91,6 @@ export async function POST(req: Request) {
       detail: loaderResult.detail || null,
       upstreamStatus: loaderResult.status
     }, loaderResult.status >= 400 && loaderResult.status < 600 ? loaderResult.status : 502);
-  }
-
-  if (!bootstrapResult.ok) {
-    return noStoreJson({
-      ok: false,
-      error: bootstrapResult.error,
-      detail: bootstrapResult.detail || null,
-      upstreamStatus: bootstrapResult.status
-    }, bootstrapResult.status >= 400 && bootstrapResult.status < 600 ? bootstrapResult.status : 502);
   }
 
   await sql`
@@ -115,7 +103,7 @@ export async function POST(req: Request) {
     VALUES (
       ${body.serviceId},
       ${encryptConfig({ source: loaderResult.output })},
-      ${encryptConfig({ source: bootstrapResult.output })},
+      ${encryptConfig({ source: readableBootstrap })},
       now()
     )
     ON CONFLICT(service_id)
