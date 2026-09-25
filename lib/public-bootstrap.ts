@@ -12,11 +12,6 @@ if type(getgenv) == "function" then
         ENV = resolvedEnv
     end
 end
-local SCRIPT_KEY = ENV.SCRIPT_KEY
-
-if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
-    error("[Claudmor] getgenv().SCRIPT_KEY is missing", 0)
-end
 
 local requestFn = nil
 if type(request) == "function" then
@@ -31,6 +26,74 @@ end
 
 if not requestFn then
     error("[Claudmor] executor request API is unavailable", 0)
+end
+
+local compiler = loadstring or load
+if type(compiler) ~= "function" then
+    error("[Claudmor] loadstring is unavailable", 0)
+end
+
+local config = {
+    keySystemEnabled = true,
+    keyUiMode = "DEFAULT",
+    serviceName = "Claudmor"
+}
+
+do
+    local okConfig, result = pcall(function()
+        return requestFn({
+            Url = "${base}/api/v1/key-ui/config?serviceId=${serviceId}",
+            Method = "GET",
+            Headers = {
+                ["Accept"] = "application/json",
+                ["X-Claudmor-Client"] = "executor"
+            }
+        })
+    end)
+
+    if okConfig and type(result) == "table" then
+        local status = tonumber(result.StatusCode or result.Status or 0) or 0
+        local raw = result.Body or result.body or ""
+
+        if status >= 200 and status < 300 and type(raw) == "string" then
+            local okJson, decoded = pcall(HttpService.JSONDecode, HttpService, raw)
+            if okJson and type(decoded) == "table" then
+                config.keySystemEnabled = decoded.keySystemEnabled ~= false
+                config.keyUiMode = tostring(decoded.keyUiMode or "DEFAULT")
+                config.serviceName = tostring(decoded.serviceName or "Claudmor")
+            end
+        end
+    end
+end
+
+local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
+
+if config.keySystemEnabled and SCRIPT_KEY == "" then
+    if config.keyUiMode == "DEFAULT" then
+        local uiSource = game:HttpGet("${base}/ui/keysystem.lua")
+        local uiChunk, uiError = compiler(uiSource, "@Claudmor/key-ui")
+        if not uiChunk then
+            error("[Claudmor] key UI compile failed: " .. tostring(uiError), 0)
+        end
+
+        local ui = uiChunk()
+        if type(ui) ~= "table" or type(ui.prompt) ~= "function" then
+            error("[Claudmor] invalid key UI library", 0)
+        end
+
+        SCRIPT_KEY = ui.prompt({
+            title = config.serviceName,
+            description = "Enter your access key to continue."
+        })
+
+        if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
+            error("[Claudmor] key entry cancelled", 0)
+        end
+
+        ENV.SCRIPT_KEY = SCRIPT_KEY
+    else
+        error("[Claudmor] custom key UI must set getgenv().SCRIPT_KEY before running the loader", 0)
+    end
 end
 
 local function getHwid()
@@ -99,11 +162,6 @@ end
 
 if type(source) ~= "string" or source == "" then
     error("[Claudmor] loader response is empty", 0)
-end
-
-local compiler = loadstring or load
-if type(compiler) ~= "function" then
-    error("[Claudmor] loadstring is unavailable", 0)
 end
 
 local chunk, compileError = compiler(source, "@Claudmor/loader")

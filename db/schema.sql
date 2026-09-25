@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS services (
   name text NOT NULL,
   secret_hash text NOT NULL,
   enabled boolean NOT NULL DEFAULT true,
+  key_system_enabled boolean NOT NULL DEFAULT true,
+  key_ui_mode text NOT NULL DEFAULT 'DEFAULT' CHECK (key_ui_mode IN ('DEFAULT','CUSTOM')),
   require_hwid boolean NOT NULL DEFAULT true,
   require_roblox_user_id boolean NOT NULL DEFAULT false,
   require_roblox_username boolean NOT NULL DEFAULT false,
@@ -79,6 +81,7 @@ CREATE TABLE IF NOT EXISTS license_keys (
   roblox_user_id text,
   roblox_username text,
   discord_user_id text,
+  system_managed boolean NOT NULL DEFAULT false,
   expires_at timestamptz,
   revoked_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()

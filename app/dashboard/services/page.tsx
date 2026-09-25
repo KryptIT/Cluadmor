@@ -8,6 +8,8 @@ type Service = {
   id: string;
   name: string;
   enabled: boolean;
+  key_system_enabled: boolean;
+  key_ui_mode: "DEFAULT" | "CUSTOM";
   require_hwid: boolean;
   require_roblox_user_id: boolean;
   require_roblox_username: boolean;
@@ -22,6 +24,8 @@ export default function ServicesPage() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState("");
   const [name, setName] = useState("");
+  const [keySystemEnabled, setKeySystemEnabled] = useState(true);
+  const [keyUiMode, setKeyUiMode] = useState<"DEFAULT" | "CUSTOM">("DEFAULT");
   const [locks, setLocks] = useState({
     hwid: true,
     robloxUserId: false,
@@ -76,6 +80,26 @@ export default function ServicesPage() {
     }
   }
 
+  async function updateService(serviceId: string, patch: Record<string, unknown>) {
+    setBusy(serviceId);
+    setMessage("");
+    try {
+      const res = await fetch("/api/workspace/services", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceId, ...patch })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Could not update service.");
+        return;
+      }
+      await loadServices();
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function createService() {
     if (!name.trim()) return;
     setBusy("create");
@@ -86,6 +110,8 @@ export default function ServicesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          keySystemEnabled,
+          keyUiMode,
           requireHwid: locks.hwid,
           requireRobloxUserId: locks.robloxUserId,
           requireRobloxUsername: locks.robloxUsername,
@@ -102,6 +128,8 @@ export default function ServicesPage() {
         return;
       }
       setName("");
+      setKeySystemEnabled(true);
+      setKeyUiMode("DEFAULT");
       setCreating(false);
       await loadServices();
     } finally {
@@ -162,6 +190,32 @@ export default function ServicesPage() {
             </label>
 
             <div>
+              <span className="fieldLabel">Key system</span>
+              <div className="keySystemSetup">
+                <label className="keySystemToggle">
+                  <input
+                    type="checkbox"
+                    checked={keySystemEnabled}
+                    onChange={e => setKeySystemEnabled(e.target.checked)}
+                  />
+                  <span>{keySystemEnabled ? "Enabled" : "Disabled"}</span>
+                </label>
+
+                <select
+                  className="input"
+                  value={keyUiMode}
+                  disabled={!keySystemEnabled}
+                  onChange={e => setKeyUiMode(e.target.value as "DEFAULT" | "CUSTOM")}
+                >
+                  <option value="DEFAULT">Default Claudmor UI</option>
+                  <option value="CUSTOM">Custom UI / library</option>
+                </select>
+
+                <Link className="secondaryBtn" href="/dashboard/key-ui">Key UI library</Link>
+              </div>
+            </div>
+
+            <div>
               <span className="fieldLabel">Required bindings</span>
               <div className="lockChoices">
                 <label><input type="checkbox" checked={locks.hwid} onChange={e => setLocks(v => ({...v, hwid:e.target.checked}))}/><span><ShieldCheck size={15}/> HWID</span></label>
@@ -211,10 +265,43 @@ export default function ServicesPage() {
                   <small>{service.id}</small>
                 </div>
                 <div className="serviceLocks">
+                  <span className={service.key_system_enabled ? "keyBadgeOn" : "keyBadgeOff"}>
+                    {service.key_system_enabled ? "Keys on" : "Keys off"}
+                  </span>
+                  {service.key_system_enabled && <span>{service.key_ui_mode === "DEFAULT" ? "Default UI" : "Custom UI"}</span>}
                   {service.require_hwid && <span>HWID</span>}
                   {service.require_roblox_user_id && <span>Roblox ID</span>}
                   {service.require_roblox_username && <span>Roblox name</span>}
                   {service.require_discord_user_id && <span>Discord ID</span>}
+                </div>
+                <div className="serviceActions">
+                  <button
+                    className="secondaryBtn"
+                    disabled={busy !== ""}
+                    onClick={() => updateService(service.id, { keySystemEnabled: !service.key_system_enabled })}
+                  >
+                    {service.key_system_enabled ? "Disable keys" : "Enable keys"}
+                  </button>
+
+                  {service.key_system_enabled && (
+                    <select
+                      className="input serviceUiSelect"
+                      value={service.key_ui_mode}
+                      disabled={busy !== ""}
+                      onChange={e => updateService(service.id, { keyUiMode: e.target.value })}
+                    >
+                      <option value="DEFAULT">Default UI</option>
+                      <option value="CUSTOM">Custom UI</option>
+                    </select>
+                  )}
+
+                  <button
+                    className="secondaryBtn"
+                    disabled={busy !== ""}
+                    onClick={() => updateService(service.id, { enabled: !service.enabled })}
+                  >
+                    {service.enabled ? "Disable service" : "Enable service"}
+                  </button>
                 </div>
                 <span className={service.enabled ? "statusGood" : "statusOff"}>{service.enabled ? "active" : "disabled"}</span>
               </article>

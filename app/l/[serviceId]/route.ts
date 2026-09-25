@@ -1,11 +1,12 @@
 import { decryptConfig } from "@/lib/config-crypto";
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
+import { looksLikeBrowserNavigation, protectedHtml } from "@/lib/protected-view";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function response(body: string, status = 200) {
+function luaResponse(body: string, status = 200) {
   return new Response(body, {
     status,
     headers: {
@@ -18,22 +19,6 @@ function response(body: string, status = 200) {
   });
 }
 
-function looksLikeBrowserNavigation(req: Request) {
-  const ua = (req.headers.get("user-agent") || "").toLowerCase();
-  const accept = (req.headers.get("accept") || "").toLowerCase();
-  const mode = (req.headers.get("sec-fetch-mode") || "").toLowerCase();
-  const dest = (req.headers.get("sec-fetch-dest") || "").toLowerCase();
-
-  return (
-    ua.includes("mozilla/") &&
-    (
-      mode === "navigate" ||
-      dest === "document" ||
-      accept.includes("text/html")
-    )
-  );
-}
-
 export async function GET(
   req: Request,
   context: { params: Promise<{ serviceId: string }> }
@@ -41,7 +26,17 @@ export async function GET(
   await ensureWorkspaceSchema();
 
   if (looksLikeBrowserNavigation(req)) {
-    return response("-- Claudmor loader endpoint", 404);
+    return new Response(protectedHtml("loader"), {
+      status: 403,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store, max-age=0",
+        "Pragma": "no-cache",
+        "X-Content-Type-Options": "nosniff",
+        "X-Robots-Tag": "noindex, nofollow, noarchive",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
+      }
+    });
   }
 
   const { serviceId } = await context.params;
@@ -55,22 +50,14 @@ export async function GET(
     LIMIT 1
   `;
 
-  if (!rows[0]) {
-    return response("-- Claudmor loader not published", 404);
-  }
+  if (!rows[0]) return luaResponse("-- Claudmor loader not published", 404);
 
   const encrypted = (rows[0] as any).bootstrap_ciphertext;
-
-  if (!encrypted) {
-    return response("-- Claudmor loader must be re-published", 409);
-  }
+  if (!encrypted) return luaResponse("-- Claudmor loader must be re-published", 409);
 
   const decoded = decryptConfig(encrypted) as { source?: string };
   const source = String(decoded.source || "");
+  if (!source) return luaResponse("-- Claudmor bootstrap unavailable", 503);
 
-  if (!source) {
-    return response("-- Claudmor bootstrap unavailable", 503);
-  }
-
-  return response(source, 200);
+  return luaResponse(source, 200);
 }

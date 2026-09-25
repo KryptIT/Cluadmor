@@ -5,6 +5,7 @@ import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
 import { clientIp, clientNonceHash, digest, noStoreJson, normalizeHwid, opaque } from "@/lib/security";
 import { HEARTBEAT_INTERVAL_SECONDS, HEARTBEAT_TTL_SECONDS } from "@/lib/runtime-session";
 import { recordTelemetry } from "@/lib/telemetry";
+import { protectedBrowserResponse } from "@/lib/protected-view";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,13 @@ export const dynamic = "force-dynamic";
 // How long a delivered script stays runnable; a captured copy replayed later refuses to start.
 const DELIVERY_TTL_SECONDS = 120;
 
-function deliveryGuard(token: string, matchType: string, matchValue: string, expiresAt: number) {
+function deliveryGuard(
+  token: string,
+  matchType: string,
+  matchValue: string,
+  expiresAt: number,
+  keySystemEnabled: boolean
+) {
   const routeCheck =
     matchType === "PLACE"
       ? `if tostring(game.PlaceId) ~= "${matchValue}" then error("[Claudmor] invalid place", 0) end\n`
@@ -20,9 +27,16 @@ function deliveryGuard(token: string, matchType: string, matchValue: string, exp
         ? `if tostring(game.GameId) ~= "${matchValue}" then error("[Claudmor] invalid universe", 0) end\n`
         : "";
 
-  return `local __cm = (getgenv and getgenv()) or _G
-if type(__cm.SCRIPT_KEY) ~= "string" or __cm.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end
-if __cm.__CLAUDMOR_AUTHORIZED ~= true then error("[Claudmor] unauthorized execution", 0) end
+  const keyCheck = keySystemEnabled
+    ? 'if type(__cm.SCRIPT_KEY) ~= "string" or __cm.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end\\n'
+    : "";
+
+  return `local __cm = _G
+if type(getgenv) == "function" then
+    local __ok, __env = pcall(getgenv)
+    if __ok and type(__env) == "table" then __cm = __env end
+end
+${keyCheck}if __cm.__CLAUDMOR_AUTHORIZED ~= true then error("[Claudmor] unauthorized execution", 0) end
 if __cm.__CLAUDMOR_DELIVERY ~= "${token}" then error("[Claudmor] invalid delivery token", 0) end
 local __cmNow = os.time()
 pcall(function() __cmNow = workspace:GetServerTimeNow() end)
@@ -67,12 +81,15 @@ function randomizedGuard(
   slot: string,
   matchType: string,
   matchValue: string,
-  expiresAt: number
+  expiresAt: number,
+  keySystemEnabled: boolean
 ) {
   const env = randomName();
   const now = randomName();
   const checks = [
-    `if type(${env}.SCRIPT_KEY) ~= "string" or ${env}.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end`,
+    ...(keySystemEnabled
+      ? [`if type(${env}.SCRIPT_KEY) ~= "string" or ${env}.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end`]
+      : []),
     `if ${env}["${slot}"] ~= "${token}" then error("[Claudmor] invalid delivery token", 0) end`,
     `local ${now} = os.time() pcall(function() ${now} = workspace:GetServerTimeNow() end) if ${now} > ${expiresAt} then error("[Claudmor] delivery expired", 0) end`
   ];
@@ -84,7 +101,12 @@ function randomizedGuard(
   }
 
   const lines = shuffle([...checks, ...decoyStatements()]).map(line => `do ${line} end`);
-  return `local ${env} = (getgenv and getgenv()) or _G\n` + lines.join("\n") + "\n";
+  return `local ${env} = _G
+if type(getgenv) == "function" then
+    local __ok, __resolved = pcall(getgenv)
+    if __ok and type(__resolved) == "table" then ${env} = __resolved end
+end
+` + lines.join("\n") + "\n";
 }
 
 async function findRoute(
@@ -144,6 +166,10 @@ async function findRoute(
   return (rows[0] as any) || null;
 }
 
+export async function GET(req: Request) {
+  return protectedBrowserResponse(req, "script");
+}
+
 export async function POST(req: Request) {
   await ensureWorkspaceSchema();
 
@@ -190,7 +216,7 @@ export async function POST(req: Request) {
   const ticket = consumed[0] as any;
 
   const access = await sql`
-    SELECT k.id, s.owner_id
+    SELECT k.id, s.owner_id, s.key_system_enabled
     FROM license_keys k
     JOIN services s ON s.id = k.service_id
     WHERE k.id = ${ticket.key_id}
@@ -316,8 +342,21 @@ export async function POST(req: Request) {
   const source =
     `-- ${watermark}\n` +
     (guardSlot
-      ? randomizedGuard(deliveryToken, guardSlot, guardMatch.type, guardMatch.value, expiresAt)
-      : deliveryGuard(deliveryToken, guardMatch.type, guardMatch.value, expiresAt)) + payload;
+      ? randomizedGuard(
+          deliveryToken,
+          guardSlot,
+          guardMatch.type,
+          guardMatch.value,
+          expiresAt,
+          (access[0] as any).key_system_enabled !== false
+        )
+      : deliveryGuard(
+          deliveryToken,
+          guardMatch.type,
+          guardMatch.value,
+          expiresAt,
+          (access[0] as any).key_system_enabled !== false
+        )) + payload;
 
   await sql`
     INSERT INTO runtime_sessions(

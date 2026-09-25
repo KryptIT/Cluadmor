@@ -34,6 +34,7 @@ const groups = [
     items: [
       { label: "Providers", href: "/dashboard/providers", icon: PlugZap },
       { label: "Keys", href: "/dashboard/keys", icon: KeyRound },
+      { label: "Key UI", href: "/dashboard/key-ui", icon: ShieldAlert },
       { label: "Scripts", href: "/dashboard/scripts", icon: Code2 },
       { label: "Loader routes", href: "/dashboard/routes", icon: Route },
       { label: "Loader", href: "/dashboard/loaders", icon: FileText },

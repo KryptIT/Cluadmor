@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 function buildGuard(serviceId: string, source: string) {
   return `local __cm = _G\nif type(getgenv) == "function" then\n    local __ok, __env = pcall(getgenv)\n    if __ok and type(__env) == "table" then __cm = __env end\nend
-if type(__cm.SCRIPT_KEY) ~= "string" or __cm.SCRIPT_KEY == "" then error("[Claudmor] SCRIPT_KEY missing", 0) end
 if __cm.__CLAUDMOR_AUTHORIZED ~= true then error("[Claudmor] unauthorized execution", 0) end
 if __cm.__CLAUDMOR_SERVICE ~= "${serviceId}" then error("[Claudmor] invalid service", 0) end
 ${source}`;

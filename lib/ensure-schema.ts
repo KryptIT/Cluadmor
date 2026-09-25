@@ -39,12 +39,20 @@ export function ensureWorkspaceSchema() {
           name text NOT NULL,
           secret_hash text NOT NULL,
           enabled boolean NOT NULL DEFAULT true,
+          key_system_enabled boolean NOT NULL DEFAULT true,
+          key_ui_mode text NOT NULL DEFAULT 'DEFAULT' CHECK (key_ui_mode IN ('DEFAULT','CUSTOM')),
           require_hwid boolean NOT NULL DEFAULT true,
           require_roblox_user_id boolean NOT NULL DEFAULT false,
           require_roblox_username boolean NOT NULL DEFAULT false,
           require_discord_user_id boolean NOT NULL DEFAULT false,
           created_at timestamptz NOT NULL DEFAULT now()
         )
+      `;
+
+      await sql`
+        ALTER TABLE services
+          ADD COLUMN IF NOT EXISTS key_system_enabled boolean NOT NULL DEFAULT true,
+          ADD COLUMN IF NOT EXISTS key_ui_mode text NOT NULL DEFAULT 'DEFAULT'
       `;
 
       await sql`
@@ -98,10 +106,16 @@ export function ensureWorkspaceSchema() {
           roblox_user_id text,
           roblox_username text,
           discord_user_id text,
+          system_managed boolean NOT NULL DEFAULT false,
           expires_at timestamptz,
           revoked_at timestamptz,
           created_at timestamptz NOT NULL DEFAULT now()
         )
+      `;
+
+      await sql`
+        ALTER TABLE license_keys
+          ADD COLUMN IF NOT EXISTS system_managed boolean NOT NULL DEFAULT false
       `;
 
       await sql`

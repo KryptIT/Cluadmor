@@ -12,11 +12,7 @@ if type(getgenv) == "function" then
         ENV = resolvedEnv
     end
 end
-local SCRIPT_KEY = ENV.SCRIPT_KEY
-
-if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
-    error("[Claudmor] getgenv().SCRIPT_KEY is missing", 0)
-end
+local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
 
 local requestFn = nil
 if type(request) == "function" then
