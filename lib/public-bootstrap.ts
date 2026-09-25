@@ -172,7 +172,7 @@ local function customKey()
     return nil
 end
 
-local function promptKey(message, force)
+local function promptKey(message, force, existingKey)
     local value = customKey()
     if type(value) == "string" and value ~= "" then
         return value
@@ -185,15 +185,13 @@ local function promptKey(message, force)
     end
 
     local saved = nil
-    if not force and type(ui.loadSavedKey) == "function" then
+    if type(existingKey) == "string" and existingKey ~= "" then
+        saved = existingKey
+    elseif not force and type(ui.loadSavedKey) == "function" then
         local ok, result = pcall(ui.loadSavedKey, "${serviceId}")
         if ok and type(result) == "string" and result ~= "" then
             saved = result
         end
-    end
-
-    if saved then
-        return saved
     end
 
     return ui.prompt({
@@ -202,14 +200,15 @@ local function promptKey(message, force)
         description = "Enter your access key to continue.",
         errorText = message,
         force = force == true,
-        remember = true
+        remember = true,
+        initialValue = saved
     })
 end
 
 local SCRIPT_KEY = type(ENV.SCRIPT_KEY) == "string" and ENV.SCRIPT_KEY or ""
 
-if config.keySystemEnabled and SCRIPT_KEY == "" then
-    SCRIPT_KEY = promptKey(nil, false)
+if config.keySystemEnabled then
+    SCRIPT_KEY = promptKey(nil, false, SCRIPT_KEY)
 
     if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
         error("[Claudmor] key entry cancelled", 0)
@@ -309,7 +308,7 @@ for attempt = 1, 5 do
 
     if config.keySystemEnabled and keyFailure and attempt < 5 then
         ENV.SCRIPT_KEY = nil
-        SCRIPT_KEY = promptKey(body, true)
+        SCRIPT_KEY = promptKey(body, true, nil)
 
         if type(SCRIPT_KEY) ~= "string" or SCRIPT_KEY == "" then
             error("[Claudmor] key entry cancelled", 0)
