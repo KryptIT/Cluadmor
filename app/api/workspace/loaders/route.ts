@@ -82,7 +82,7 @@ export async function POST(req: Request) {
   const readableLoader = buildLoader(origin, body.serviceId);
   const readableBootstrap = buildPublicBootstrap(origin, body.serviceId);
 
-  const loaderResult = await runClaudium(readableLoader, "executor", true);
+  const loaderResult = await runClaudium(readableLoader, "luau", true);
 
   if (!loaderResult.ok) {
     return noStoreJson({
