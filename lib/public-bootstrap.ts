@@ -86,20 +86,7 @@ local function httpPost(url, bodyTable, headers)
     return type(body) == "string" and body or tostring(body or "")
 end
 
-local compiler = nil
-if type(ENV.loadstring) == "function" then
-    compiler = ENV.loadstring
-elseif type(loadstring) == "function" then
-    compiler = loadstring
-elseif type(ENV.load) == "function" then
-    compiler = ENV.load
-elseif type(load) == "function" then
-    compiler = load
-end
-
-if type(compiler) ~= "function" then
-    error("[Claudmor] loadstring is unavailable", 0)
-end
+local compiler = loadstring
 
 local config = {
     keySystemEnabled = true,
