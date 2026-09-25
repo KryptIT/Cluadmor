@@ -157,30 +157,43 @@ export async function POST(req: Request) {
       return fail("key_revoked", 403, "This key was automatically revoked after shared-key use was detected.", "key_sharing");
     }
 
-    if (key.hwid_hash && key.hwid_hash !== hwidHash) {
-      await recordTelemetry({ serviceId: service.id, keyId: key.id, eventType: "AUTH_REJECTED", hwidHash, ipHash, reason: "hwid_mismatch" });
-      return fail("hwid_mismatch", 403, "The key is bound to a different HWID.", "hwid_binding");
-    }
-
-    if (key.roblox_user_id && String(key.roblox_user_id) !== String(body.robloxUserId || "")) {
-      return fail("roblox_user_id_mismatch", 403, "The key is bound to a different Roblox UserId.", "roblox_user_id_binding");
-    }
-
-    if (
-      key.roblox_username &&
-      String(key.roblox_username).toLowerCase() !== String(body.robloxUsername || "").toLowerCase()
-    ) {
-      return fail("roblox_username_mismatch", 403, "The key is bound to a different Roblox username.", "roblox_username_binding");
-    }
-
-    if (!key.hwid_hash || !key.roblox_user_id || !key.roblox_username) {
+    if (!key.hwid_hash) {
       await sql`
         UPDATE license_keys
-        SET hwid_hash = COALESCE(hwid_hash, ${hwidHash}),
-            roblox_user_id = COALESCE(roblox_user_id, ${String(body.robloxUserId || "")}),
-            roblox_username = COALESCE(roblox_username, ${String(body.robloxUsername || "")})
+        SET hwid_hash = ${hwidHash},
+            roblox_user_id = ${String(body.robloxUserId || "")},
+            roblox_username = ${String(body.robloxUsername || "")}
         WHERE id = ${key.id}
       `;
+
+      key.hwid_hash = hwidHash;
+      key.roblox_user_id = String(body.robloxUserId || "");
+      key.roblox_username = String(body.robloxUsername || "");
+    } else {
+      if (key.hwid_hash !== hwidHash) {
+        await recordTelemetry({ serviceId: service.id, keyId: key.id, eventType: "AUTH_REJECTED", hwidHash, ipHash, reason: "hwid_mismatch" });
+        return fail("hwid_mismatch", 403, "The key is bound to a different HWID.", "hwid_binding");
+      }
+
+      if (key.roblox_user_id && String(key.roblox_user_id) !== String(body.robloxUserId || "")) {
+        return fail("roblox_user_id_mismatch", 403, "The key is bound to a different Roblox UserId.", "roblox_user_id_binding");
+      }
+
+      if (
+        key.roblox_username &&
+        String(key.roblox_username).toLowerCase() !== String(body.robloxUsername || "").toLowerCase()
+      ) {
+        return fail("roblox_username_mismatch", 403, "The key is bound to a different Roblox username.", "roblox_username_binding");
+      }
+
+      if (!key.roblox_user_id || !key.roblox_username) {
+        await sql`
+          UPDATE license_keys
+          SET roblox_user_id = COALESCE(roblox_user_id, ${String(body.robloxUserId || "")}),
+              roblox_username = COALESCE(roblox_username, ${String(body.robloxUsername || "")})
+          WHERE id = ${key.id}
+        `;
+      }
     }
 
     if (service.require_discord_user_id && String(key.discord_user_id || "") !== String(body.discordUserId || "")) {
