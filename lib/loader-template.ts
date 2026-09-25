@@ -154,6 +154,14 @@ if type(auth.session) ~= "string" then
     error("[Claudmor] auth session missing", 0)
 end
 
+-- Keyless services still need to run older protected builds that may contain
+-- Claudmor's historical non-empty SCRIPT_KEY guard. This private runtime marker
+-- is only set after the server has confirmed that the service is actually keyless.
+if auth.keySystemEnabled == false and SCRIPT_KEY == "" then
+    SCRIPT_KEY = "__CLAUDMOR_KEYLESS_RUNTIME__"
+    ENV.SCRIPT_KEY = SCRIPT_KEY
+end
+
 local ticket = post("/api/v1/bootstrap/ticket", {}, {
     ["Authorization"] = "Bearer " .. auth.session
 })
