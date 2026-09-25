@@ -27,6 +27,28 @@ if not requestFn then
     error("[Claudmor] executor request API is unavailable", 0)
 end
 
+-- Captured before any network wait so a later swap of loadstring is not picked up.
+local compiler = loadstring or load
+if type(compiler) ~= "function" then
+    error("[Claudmor] loadstring is unavailable", 0)
+end
+
+-- Refuses to run when the executor reports that a function the loader relies on is hooked.
+local function assertUntampered()
+    if type(isfunctionhooked) ~= "function" then
+        return
+    end
+
+    for _, fn in ipairs({ requestFn, compiler, HttpService.JSONEncode, HttpService.JSONDecode }) do
+        local ok, result = pcall(isfunctionhooked, fn)
+        if ok and result == true then
+            error("[Claudmor] tampered environment", 0)
+        end
+    end
+end
+
+assertUntampered()
+
 local function post(path, body, headers)
     local h = {
         ["Content-Type"] = "application/json",
@@ -106,10 +128,37 @@ end
 
 local hwid = getHwid()
 
+-- Fresh random nonce per run; the server binds this run's session and ticket to it,
+-- so a captured request sequence cannot be replayed without it.
+local function makeNonce()
+    local rng = Random.new(tick() + os.clock() * 1e6)
+    local parts = {
+        (HttpService:GenerateGUID(false):gsub("-", ""))
+    }
+
+    local seeds = {
+        os.time(),
+        math.floor(tick() * 1000) % 0x7fffffff,
+        math.floor(os.clock() * 1e6) % 0x7fffffff
+    }
+    for _, seed in ipairs(seeds) do
+        table.insert(parts, string.format("%08x", seed))
+    end
+
+    for _ = 1, 4 do
+        table.insert(parts, string.format("%08x", rng:NextInteger(0, 0x7fffffff)))
+    end
+
+    return table.concat(parts)
+end
+
+local nonce = makeNonce()
+
 local auth = post("/api/v1/auth", {
     serviceId = "${serviceId}",
     key = SCRIPT_KEY,
     hwid = hwid,
+    nonce = nonce,
     robloxUserId = tostring(player.UserId),
     robloxUsername = player.Name,
     discordUserId = ENV.DISCORD_USER_ID and tostring(ENV.DISCORD_USER_ID) or nil
@@ -130,6 +179,7 @@ end
 local delivery = post("/api/v1/loader/fetch", {
     ticket = ticket.ticket,
     hwid = hwid,
+    nonce = nonce,
     placeId = tostring(game.PlaceId),
     universeId = tostring(game.GameId)
 })
@@ -138,31 +188,59 @@ if type(delivery.source) ~= "string" or delivery.source == "" then
     error("[Claudmor] routed script is empty", 0)
 end
 
-ENV.__CLAUDMOR_AUTHORIZED = true
-ENV.__CLAUDMOR_DELIVERY = delivery.deliveryToken
-ENV.__CLAUDMOR_SERVICE = "${serviceId}"
+-- The server names a one-off random slot for the delivery token; fall back to the fixed names.
+local guardSlot = type(delivery.guardSlot) == "string" and delivery.guardSlot or nil
 
-local compiler = loadstring or load
-if type(compiler) ~= "function" then
-    ENV.__CLAUDMOR_AUTHORIZED = nil
-    ENV.__CLAUDMOR_DELIVERY = nil
-    ENV.__CLAUDMOR_SERVICE = nil
-    error("[Claudmor] loadstring is unavailable", 0)
+local function setMarkers(on)
+    if guardSlot then
+        ENV[guardSlot] = on and delivery.deliveryToken or nil
+    else
+        ENV.__CLAUDMOR_DELIVERY = on and delivery.deliveryToken or nil
+    end
+    -- Scripts built by the obfuscate route carry their own guard that checks these two.
+    ENV.__CLAUDMOR_AUTHORIZED = on or nil
+    ENV.__CLAUDMOR_SERVICE = on and "${serviceId}" or nil
 end
+
+assertUntampered()
 
 local chunk, compileError = compiler(delivery.source, "@Claudmor/" .. tostring(delivery.scriptName or "script"))
 if not chunk then
-    ENV.__CLAUDMOR_AUTHORIZED = nil
-    ENV.__CLAUDMOR_DELIVERY = nil
-    ENV.__CLAUDMOR_SERVICE = nil
     error("[Claudmor] compile failed: " .. tostring(compileError), 0)
 end
 
-local ok, result = pcall(chunk)
+-- Keeps the runtime session alive with a rotating token; when the server ends the session
+-- (revoked key, expired, replayed token) the markers are cleared. Best effort: code that is
+-- already running cannot be forcibly stopped, but the session is dead server-side.
+local heartbeat = delivery.heartbeat
+if type(heartbeat) == "table" and type(heartbeat.token) == "string" and type(heartbeat.endpoint) == "string" then
+    local beatToken = heartbeat.token
+    local interval = tonumber(heartbeat.interval) or 45
 
-ENV.__CLAUDMOR_AUTHORIZED = nil
-ENV.__CLAUDMOR_DELIVERY = nil
-ENV.__CLAUDMOR_SERVICE = nil
+    task.spawn(function()
+        while true do
+            task.wait(interval)
+            local okBeat, beat = pcall(post, heartbeat.endpoint, {
+                token = beatToken,
+                hwid = hwid,
+                nonce = nonce
+            })
+
+            if not okBeat or type(beat) ~= "table" or beat.ok ~= true or type(beat.token) ~= "string" then
+                setMarkers(false)
+                ENV.__CLAUDMOR_SESSION_ENDED = true
+                break
+            end
+
+            beatToken = beat.token
+            interval = tonumber(beat.interval) or interval
+        end
+    end)
+end
+
+setMarkers(true)
+local ok, result = pcall(chunk)
+setMarkers(false)
 
 if not ok then
     error(result, 0)
