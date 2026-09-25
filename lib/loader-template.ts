@@ -33,22 +33,6 @@ if type(compiler) ~= "function" then
     error("[Claudmor] loadstring is unavailable", 0)
 end
 
--- Refuses to run when the executor reports that a function the loader relies on is hooked.
-local function assertUntampered()
-    if type(isfunctionhooked) ~= "function" then
-        return
-    end
-
-    for _, fn in ipairs({ requestFn, compiler, HttpService.JSONEncode, HttpService.JSONDecode }) do
-        local ok, result = pcall(isfunctionhooked, fn)
-        if ok and result == true then
-            error("[Claudmor] tampered environment", 0)
-        end
-    end
-end
-
-assertUntampered()
-
 local function post(path, body, headers)
     local h = {
         ["Content-Type"] = "application/json",
@@ -201,8 +185,6 @@ local function setMarkers(on)
     ENV.__CLAUDMOR_AUTHORIZED = on or nil
     ENV.__CLAUDMOR_SERVICE = on and "${serviceId}" or nil
 end
-
-assertUntampered()
 
 local chunk, compileError = compiler(delivery.source, "@Claudmor/" .. tostring(delivery.scriptName or "script"))
 if not chunk then
