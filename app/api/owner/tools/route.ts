@@ -240,27 +240,11 @@ export async function POST(req: Request) {
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
         const readableBootstrap = buildPublicBootstrap(origin, String(service.id));
-        const loaderResult = await runClaudium(
-          buildLoader(origin, String(service.id)),
-          "executor",
-          true
-        );
-
-        if (!loaderResult.ok) {
-          return {
-            id: service.id,
-            name: service.name,
-            ownerId: service.owner_id,
-            owner: service.owner_email || service.owner_username || service.owner_id,
-            ok: false,
-            error: loaderResult.error,
-            detail: loaderResult.detail || null
-          };
-        }
+        const readableLoader = buildLoader(origin, String(service.id));
 
         await sql`
           UPDATE service_loaders
-          SET loader_ciphertext = ${encryptConfig({ source: loaderResult.output })},
+          SET loader_ciphertext = ${encryptConfig({ source: readableLoader })},
               bootstrap_ciphertext = ${encryptConfig({ source: readableBootstrap })},
               updated_at = now()
           WHERE service_id = ${service.id}
@@ -309,25 +293,11 @@ export async function POST(req: Request) {
     const results = await mapLimit(rows as any[], 2, async service => {
       try {
         const readableBootstrap = buildPublicBootstrap(origin, String(service.id));
-        const loaderResult = await runClaudium(
-          buildLoader(origin, String(service.id)),
-          "executor",
-          true
-        );
-
-        if (!loaderResult.ok) {
-          return {
-            id: service.id,
-            name: service.name,
-            ok: false,
-            error: loaderResult.error,
-            detail: loaderResult.detail || null
-          };
-        }
+        const readableLoader = buildLoader(origin, String(service.id));
 
         await sql`
           UPDATE service_loaders
-          SET loader_ciphertext = ${encryptConfig({ source: loaderResult.output })},
+          SET loader_ciphertext = ${encryptConfig({ source: readableLoader })},
               bootstrap_ciphertext = ${encryptConfig({ source: readableBootstrap })},
               updated_at = now()
           WHERE service_id = ${service.id}
