@@ -160,6 +160,16 @@ CREATE TABLE IF NOT EXISTS service_key_settings (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS provider_key_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  provider text NOT NULL,
+  token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  consumed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS telemetry_events (
   id bigserial PRIMARY KEY,
   service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
@@ -195,6 +205,7 @@ CREATE INDEX IF NOT EXISTS idx_runtime_sessions_key ON runtime_sessions(key_id);
 CREATE INDEX IF NOT EXISTS idx_runtime_sessions_expiry ON runtime_sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_rewards_user ON reward_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_service_providers_service ON service_providers(service_id);
+CREATE INDEX IF NOT EXISTS idx_provider_key_sessions_expiry ON provider_key_sessions(expires_at);
 
 CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user ON oauth_accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_telemetry_service_created ON telemetry_events(service_id, created_at DESC);
