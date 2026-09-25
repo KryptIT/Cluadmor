@@ -1,8 +1,8 @@
 import { sql } from "@/lib/db";
 import { ensureWorkspaceSchema } from "@/lib/ensure-schema";
-import { clientIp, digest, noStoreJson, normalizeHwid } from "@/lib/security";
+import { clientIp, clientNonceHash, digest, noStoreJson, normalizeHwid } from "@/lib/security";
 import { issueSession } from "@/lib/session";
-import { recordTelemetry } from "@/lib/telemetry";
+import { keySharingDetected, recordTelemetry, revokeKeyForAbuse, tooManyKeyFailures } from "@/lib/telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ type Body = {
   robloxUserId?: string;
   robloxUsername?: string;
   discordUserId?: string;
+  nonce?: string;
 };
 
 export async function POST(req: Request) {
@@ -47,6 +48,10 @@ export async function POST(req: Request) {
   const hwidHash = digest(hwid);
   const ipHash = digest(clientIp(req.headers));
   const keyHash = digest(body.key);
+
+  if (await tooManyKeyFailures(ipHash)) {
+    return noStoreJson({ ok: false, error: "rate_limited" }, 429);
+  }
 
   const rows = await sql`
     SELECT id, hwid_hash, roblox_user_id, roblox_username, discord_user_id,
@@ -92,6 +97,19 @@ export async function POST(req: Request) {
       reason: "expired_key"
     });
     return noStoreJson({ ok: false, error: "invalid_key" }, 401);
+  }
+
+  if (await keySharingDetected(key.id)) {
+    await revokeKeyForAbuse(key.id, "shared_key");
+    await recordTelemetry({
+      serviceId: service.id,
+      keyId: key.id,
+      eventType: "AUTH_REJECTED",
+      hwidHash,
+      ipHash,
+      reason: "auto_revoked_shared"
+    });
+    return noStoreJson({ ok: false, error: "key_revoked" }, 403);
   }
 
   if (service.require_hwid) {
@@ -187,7 +205,8 @@ export async function POST(req: Request) {
       serviceId: service.id,
       keyId: key.id,
       ownerId: service.owner_id,
-      hwidHash
+      hwidHash,
+      clientNonceHash: clientNonceHash(body.nonce) ?? undefined
     }),
     expiresIn: 300
   });
